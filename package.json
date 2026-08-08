@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "mysql2": "^3.23.2",
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
