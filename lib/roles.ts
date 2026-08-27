@@ -4,7 +4,7 @@ import type { UserRole } from "@/types/next-auth";
 // Middleware uses the same mapping to bounce a role off a forbidden
 // route and send them to their own area instead of back to /login.
 export const ROLE_HOME: Record<UserRole, string> = {
-  OWNER: "/owner",
+  OWNER: "/owner/dashboard",
   COLLECTOR: "/collector/fabric-intake",
   OPERATOR: "/operator/work-order",
 };
