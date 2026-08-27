@@ -22,3 +22,22 @@
 
 ## Roles
 Three user roles: OWNER, COLLECTOR, OPERATOR — see users.role column
+
+## Status (updated after auth milestone)
+- **Auth & Roles: DONE** — `/login`, NextAuth credentials + JWT sessions,
+  role-based route protection in `middleware.ts` (Node runtime) mapping
+  `/owner` → OWNER, `/collector` → COLLECTOR, `/operator` → OPERATOR.
+  Server pages re-check with helpers in `lib/auth-helpers.ts`.
+- Role home routes live in `lib/roles.ts` (`ROLE_HOME`).
+- Screens/APIs beyond auth are not built yet; the files under
+  `app/api/*` and `app/operator/pos/*` are intentional placeholders
+  ("coming soon" / 501) until each feature gets implemented.
+
+## UI Rule — Sidebar
+
+Every page under /owner, /collector, /operator MUST use the shared 
+component at components/sidebar/sidebar.tsx — never create a new 
+sidebar, never inline sidebar markup directly in a page file. Pass 
+the current role and active route as props so it highlights the 
+correct nav item. If this component doesn't exist yet when building 
+a page, create it once, then reuse it everywhere.
