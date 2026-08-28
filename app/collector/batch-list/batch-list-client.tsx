@@ -30,6 +30,7 @@ export interface FabricBatch {
   description: string | null;
   processNotes: string | null;
   status: string;
+  currentPhase: string | null;
   createdAt: string;
   recordedByName: string;
 }
@@ -208,7 +209,14 @@ export function BatchListClient() {
                   </TableCell>
                   <TableCell className="py-3.5 text-charcoal">{batch.recordedByName}</TableCell>
                   <TableCell className="py-3.5 pr-6 text-right">
-                    <StatusBadge status={batch.status} />
+                    <div className="flex flex-col items-end gap-1">
+                      <StatusBadge status={batch.status} />
+                      {batch.status === "IN_PRODUCTION" && batch.currentPhase && (
+                        <span className="rounded-md bg-gold/15 px-1.5 py-0.5 text-[11px] font-medium text-charcoal">
+                          In: {batch.currentPhase}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="py-3.5 pr-6 text-right">
                     <button

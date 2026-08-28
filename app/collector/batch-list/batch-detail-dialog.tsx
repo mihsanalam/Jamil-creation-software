@@ -80,6 +80,11 @@ export function BatchDetailDialog({ batch, onClose }: BatchDetailDialogProps) {
               </DialogHeader>
               <div className="mt-2">
                 <StatusBadge status={batch.status} />
+                {batch.status === "IN_PRODUCTION" && batch.currentPhase && (
+                  <span className="ml-2 inline-flex rounded-md bg-gold/15 px-2 py-0.5 text-xs font-medium text-charcoal">
+                    Current phase: {batch.currentPhase}
+                  </span>
+                )}
               </div>
             </div>
 

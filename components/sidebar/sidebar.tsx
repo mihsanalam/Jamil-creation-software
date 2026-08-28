@@ -52,7 +52,7 @@ const NAV_BY_ROLE: Record<UserRole, { subtitle: string; items: NavItem[] }> = {
   OPERATOR: {
     subtitle: "Operator Console",
     items: [
-      { label: "Work Order", href: "/operator/work-order", key: "work-order", icon: ClipboardList },
+      { label: "Work Order", href: "/operator/work-orders", key: "work-orders", icon: ClipboardList },
       { label: "Phase Board", href: "/operator/phase-board", key: "phase-board", icon: Boxes },
       { label: "New Sale", href: "/operator/pos/new-sale", key: "new-sale", icon: ShoppingCart },
       { label: "Clients", href: "/operator/pos/clients", key: "clients", icon: Users2 },

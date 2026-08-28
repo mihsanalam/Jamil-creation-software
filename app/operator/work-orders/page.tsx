@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
 
 import { Sidebar } from "@/components/sidebar/sidebar";
-import { PhaseBoardClient } from "./phase-board-client";
+import { WorkOrderForm } from "./work-order-form";
 
 export const metadata: Metadata = {
-  title: "Phase Board - Jamil Creations",
+  title: "Work Order - Jamil Creations",
 };
 
 // Server-rendered page; auth (OPERATOR-only) is enforced by middleware.
-export default function PhaseBoardPage() {
+export default function WorkOrdersPage() {
   return (
     <div className="flex min-h-screen">
-      <Sidebar role="OPERATOR" activeRoute="phase-board" />
+      <Sidebar role="OPERATOR" activeRoute="work-orders" />
 
       <main className="flex-1 bg-cream px-4 py-8 md:px-10 md:py-12">
-        <PhaseBoardClient />
+        <div className="w-full max-w-4xl">
+          <WorkOrderForm />
+        </div>
       </main>
     </div>
   );

@@ -57,6 +57,9 @@ export async function GET(request: Request) {
     status: string;
     created_at: Date;
     recordedByName: string;
+    // The current production phase from the operator's work_order_phases
+    // (populated only while the batch is IN_PRODUCTION).
+    current_phase: string | null;
   }
 
   const where: string[] = [];
@@ -72,10 +75,21 @@ export async function GET(request: Request) {
   }
 
   try {
+    // current_phase: pull the operator's currently-active production step
+    // (work_order_phases status = IN_PROGRESS) for this batch's work order,
+    // so the collector can see which process the load is in, not just that
+    // the batch is broadly "in production".
     const [rows] = await db.query<BatchListRow[]>(
       `SELECT fb.id, fb.batch_number, fb.fabric_type, fb.quantity, fb.unit,
               fb.supplier, fb.date_received, fb.description, fb.process_notes,
-              fb.status, fb.created_at, u.name AS recordedByName
+              fb.status, fb.created_at, u.name AS recordedByName,
+              (SELECT p.name
+               FROM work_order_phases p
+               JOIN work_orders wo ON wo.id = p.work_order_id
+               WHERE wo.fabric_batch_id = fb.id
+                 AND p.status = 'IN_PROGRESS'
+               ORDER BY p.step_order
+               LIMIT 1) AS current_phase
        FROM fabric_batches fb
        JOIN users u ON u.id = fb.recorded_by_id
        ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
@@ -97,6 +111,7 @@ export async function GET(request: Request) {
         description: row.description,
         processNotes: row.process_notes,
         status: row.status,
+        currentPhase: row.current_phase,
         createdAt: row.created_at,
         recordedByName: row.recordedByName,
       }))

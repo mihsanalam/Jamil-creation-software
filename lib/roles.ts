@@ -6,7 +6,7 @@ import type { UserRole } from "@/types/next-auth";
 export const ROLE_HOME: Record<UserRole, string> = {
   OWNER: "/owner/dashboard",
   COLLECTOR: "/collector/fabric-intake",
-  OPERATOR: "/operator/work-order",
+  OPERATOR: "/operator/work-orders",
 };
 
 // Human-friendly labels, used for the role badge on dashboards.
