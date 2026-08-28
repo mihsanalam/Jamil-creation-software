@@ -11,6 +11,9 @@ const statusStyles: Record<string, string> = {
     "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-900",
   SOLD: "bg-rust text-cream border-rust",
 
+  // Finished products (warehouse)
+  IN_STOCK: "bg-green-100 text-green-800 border-green-200",
+
   // Phase progress (future screens)
   IN_PROGRESS: "bg-gold text-charcoal border-gold",
   COMPLETED:
