@@ -175,7 +175,7 @@ export function PhaseBoardClient() {
       {isLoading && (
         <div className="grid auto-cols-[minmax(220px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2">
           {[0, 1, 2, 3].map((index) => (
-            <div key={index} className="w-[220px] space-y-3">
+            <div key={index} className="w-55 space-y-3">
               <Skeleton className="h-9 w-full rounded-lg" />
               <Skeleton className="h-28 w-full rounded-xl" />
               <Skeleton className="h-28 w-full rounded-xl" />
@@ -198,7 +198,7 @@ export function PhaseBoardClient() {
             return (
               <section
                 key={columnName}
-                className="flex w-[230px] shrink-0 flex-col gap-3"
+                className="flex w-57.5 shrink-0 flex-col gap-3"
               >
                 <header className="flex items-center justify-between rounded-lg bg-charcoal px-4 py-2.5 text-cream">
                   <h2 className="text-sm font-semibold">{columnName}</h2>
