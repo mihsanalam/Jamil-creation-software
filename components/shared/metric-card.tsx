@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
   /** Short label under the title, e.g. "Batches in production" */
@@ -11,6 +12,8 @@ interface MetricCardProps {
   description?: string;
   /** Lucide icon rendered on the left */
   icon: LucideIcon;
+  /** Accent — "rust" tints the icon box and value (used for Outstanding dues) */
+  variant?: "default" | "rust";
 }
 
 /**
@@ -23,16 +26,29 @@ export function MetricCard({
   value,
   description,
   icon: Icon,
+  variant = "default",
 }: MetricCardProps) {
   return (
     <Card className="bg-white">
       <CardContent className="flex items-center gap-4 py-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-charcoal">
+        <div
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-xl text-charcoal",
+            variant === "rust"
+              ? "bg-rust/15 text-rust"
+              : "bg-gold/20"
+          )}
+        >
           <Icon className="size-5" />
         </div>
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-sm text-muted-foreground">{label}</span>
-          <span className="font-heading text-2xl font-semibold text-charcoal">
+          <span
+            className={cn(
+              "font-heading text-2xl font-semibold",
+              variant === "rust" ? "text-rust" : "text-charcoal"
+            )}
+          >
             {value}
           </span>
           {description && (
@@ -45,3 +61,4 @@ export function MetricCard({
     </Card>
   );
 }
+
