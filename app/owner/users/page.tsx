@@ -1,10 +1,23 @@
-import { PagePlaceholder } from "@/components/shared/page-placeholder";
+import type { Metadata } from "next";
 
+import { Sidebar } from "@/components/sidebar/sidebar";
+import { UsersClient } from "./users-client";
+
+export const metadata: Metadata = {
+  title: "Users - Jamil Creations",
+};
+
+// Server-rendered page; auth (OWNER-only) is enforced by middleware.
 export default function UsersPage() {
   return (
-    <PagePlaceholder
-      title="Users"
-      description="Create and manage user accounts, roles and access for the team."
-    />
+    <div className="flex min-h-screen">
+      <Sidebar role="OWNER" activeRoute="users" />
+
+      <main className="flex-1 bg-cream px-4 py-8 md:px-10 md:py-12">
+        <div className="w-full max-w-6xl">
+          <UsersClient />
+        </div>
+      </main>
+    </div>
   );
 }
