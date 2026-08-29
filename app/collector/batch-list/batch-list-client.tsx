@@ -195,7 +195,7 @@ export function BatchListClient() {
             </TableHeader>
             <TableBody>
               {data?.map((batch) => (
-                <TableRow key={batch.id} className="hover:bg-gold/[0.06]">
+                <TableRow key={batch.id} className="hover:bg-gold/6">
                   <TableCell className="py-3.5 pl-6 font-mono text-sm font-medium text-charcoal">
                     {batch.batchNumber}
                   </TableCell>

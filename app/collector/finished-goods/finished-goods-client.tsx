@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 // A phase inside a ready work order (shape from GET /api/work-orders/ready).
 export interface ReadyOrderPhase {
@@ -258,7 +259,7 @@ export function FinishedGoodsClient() {
               />
             </PopoverTrigger>
 
-            <PopoverContent className="w-[420px] p-0" align="start" sideOffset={6}>
+            <PopoverContent className="w-150 p-0" align="start" sideOffset={6}>
               <Command>
                 <CommandInput placeholder="Search batch number or product type…" />
                 <CommandList>
@@ -380,7 +381,7 @@ export function FinishedGoodsClient() {
           ) : (
             <div className="flex flex-1 flex-col items-center gap-4">
               <div className="rounded-xl border border-border bg-white p-4">
-                <img
+                <Image
                   src={qrDataUrl}
                   alt={`QR code for barcode ${createdProduct.barcode}`}
                   className="size-36"

@@ -1,13 +1,24 @@
-// TODO(screen): Due Collection — build as part of the POS feature.
+import type { Metadata } from "next";
+
+import { Sidebar } from "@/components/sidebar/sidebar";
+import { DueCollectionClient } from "./due-collection-client";
+
+export const metadata: Metadata = {
+  title: "Due Collection - Jamil Creations",
+};
+
+// Server-rendered page; auth (OPERATOR-only) is enforced by middleware.
 export default function DueCollectionPage() {
   return (
-    <div className="min-h-full bg-cream p-6">
-      <h1 className="font-serif text-xl font-semibold text-charcoal">
-        Due Collection
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        This screen is coming soon.
-      </p>
+    <div className="flex min-h-screen">
+      <Sidebar role="OPERATOR" activeRoute="due-collection" />
+
+      <main className="flex-1 bg-cream px-4 py-8 md:px-10 md:py-12">
+        <div className="w-full max-w-6xl">
+          <DueCollectionClient />
+        </div>
+      </main>
     </div>
   );
 }
+

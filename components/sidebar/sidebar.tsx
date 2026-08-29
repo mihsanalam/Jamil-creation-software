@@ -79,7 +79,7 @@ export function Sidebar({ role, activeRoute }: SidebarProps) {
   const { subtitle, items } = NAV_BY_ROLE[role];
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[280px] shrink-0 flex-col border-r border-charcoal/20 bg-charcoal py-6 md:flex">
+    <aside className="sticky top-0 hidden h-screen w-70 shrink-0 flex-col border-r border-charcoal/20 bg-charcoal py-6 md:flex">
       <div className="mb-8 px-5">
         <h1 className="font-serif text-2xl font-bold tracking-tight text-gold">
           Jamil Creations

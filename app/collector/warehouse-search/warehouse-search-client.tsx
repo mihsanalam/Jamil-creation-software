@@ -145,7 +145,7 @@ export function WarehouseSearchClient() {
             </TableHeader>
             <TableBody>
               {data?.map((product) => (
-                <TableRow key={product.id} className="hover:bg-gold/[0.06]">
+                <TableRow key={product.id} className="hover:bg-gold/6">
                   <TableCell className="py-3.5 pl-6">
                     <div className="flex flex-col gap-0.5">
                       <span className="font-mono text-sm font-semibold text-charcoal">

@@ -272,7 +272,7 @@ export function ClientsClient() {
             </TableHeader>
             <TableBody>
               {data?.map((client) => (
-                <TableRow key={client.id} className="hover:bg-gold/[0.06]">
+                <TableRow key={client.id} className="hover:bg-gold/6">
                   <TableCell className="py-3.5 pl-6 text-sm font-medium text-charcoal">
                     {client.name}
                   </TableCell>
