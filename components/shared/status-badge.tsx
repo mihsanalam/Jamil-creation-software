@@ -22,6 +22,7 @@ const statusStyles: Record<string, string> = {
   // Payments (future screens)
   DUE: "bg-rust text-cream border-rust",
   PAID: "bg-green-100 text-green-800 border-green-200",
+  PARTIAL: "bg-gold/20 text-charcoal border-gold",
 };
 
 export function StatusBadge({ status }: { status: string }) {
