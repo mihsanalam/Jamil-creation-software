@@ -22,6 +22,7 @@ export interface FinishedProduct {
   workOrderId: string;
   barcode: string;
   quantity: number;
+  quantityRemaining: number;
   storageLocation: string;
   status: string;
   dateAdded: string;
@@ -158,7 +159,7 @@ export function WarehouseSearchClient() {
                     </div>
                   </TableCell>
                   <TableCell className="py-3.5 font-mono text-charcoal">
-                    {product.quantity} pcs
+                    {product.quantityRemaining} pcs
                   </TableCell>
                   <TableCell className="py-3.5 text-charcoal">
                     {product.storageLocation}

@@ -38,6 +38,7 @@ export interface FinishedProductRow {
   workOrderId: string;
   barcode: string;
   quantity: number;
+  quantityRemaining: number;
   storageLocation: string;
   status: "IN_STOCK" | "SOLD";
   dateAdded: string;
@@ -51,6 +52,7 @@ export interface ProductTrace {
     id: string;
     barcode: string;
     quantity: number;
+    quantityRemaining: number;
     status: "IN_STOCK" | "SOLD";
   };
   productType: string;
@@ -73,13 +75,14 @@ export interface ProductTrace {
     location: string;
     dateAdded: string;
   };
-  sale: {
+  sales: {
     invoiceNumber: string;
     clientName: string;
     date: string;
+    quantity: number;
     amount: number;
     paymentStatus: string;
-  } | null;
+  }[];
 }
 
 // SWR fetcher — throws on non-2xx so isLoading/error behave predictably.
@@ -311,7 +314,7 @@ export function TraceabilityClient() {
                         </div>
                       </TableCell>
                       <TableCell className="py-3.5 font-mono text-charcoal">
-                        {product.quantity} pcs
+                        {product.quantityRemaining} pcs
                       </TableCell>
                       <TableCell className="py-3.5 text-charcoal">
                         {product.storageLocation}
@@ -362,6 +365,11 @@ function TraceSummary({ trace }: { trace: ProductTrace }) {
         <DetailRow label="Supplier" value={trace.batch.supplier} />
         <DetailRow label="Date received" value={formatDate(trace.batch.dateReceived)} />
         <DetailRow label="Barcode" value={trace.product.barcode} mono />
+        <DetailRow
+          label="Quantity remaining"
+          value={`${trace.product.quantityRemaining} pcs`}
+          mono
+        />
       </CardContent>
     </Card>
   );
@@ -400,10 +408,16 @@ function TraceStepper({ trace }: { trace: ProductTrace }) {
     },
     {
       key: "sold",
-      label: "Sold",
-      meta: trace.sale
-        ? `${trace.sale.clientName} · ${formatDate(trace.sale.date)}`
-        : "In stock",
+      label:
+        trace.sales.length > 0
+          ? trace.product.status === "SOLD"
+            ? "Sold"
+            : "Partially sold"
+          : "Awaiting sale",
+      meta:
+        trace.sales.length > 0
+          ? `${trace.sales[0].clientName} · ${formatDate(trace.sales[0].date)}`
+          : "In stock",
       completed: trace.product.status === "SOLD",
     },
   ];
@@ -479,7 +493,8 @@ function StorageCard({ trace }: { trace: ProductTrace }) {
   );
 }
 
-/** Sale card — invoice details when sold, "Not yet sold" while still in stock. */
+/** Sale card — every sale the lot has been part of. A partial lot can appear
+ * in several sales, so each sale gets its own entry with the units sold. */
 function SaleCard({ trace }: { trace: ProductTrace }) {
   return (
     <Card className="bg-white shadow-sm">
@@ -489,17 +504,35 @@ function SaleCard({ trace }: { trace: ProductTrace }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {trace.sale ? (
-          <div className="flex flex-col gap-4">
-            <DetailRow label="Client" value={trace.sale.clientName} />
-            <DetailRow label="Invoice" value={trace.sale.invoiceNumber} mono />
-            <DetailRow label="Amount" value={formatMoney(trace.sale.amount)} mono />
-            <div className="flex items-center gap-2">
-              <StatusBadge status={trace.sale.paymentStatus} />
-              <span className="text-xs text-muted-foreground">
-                {formatDate(trace.sale.date)}
-              </span>
-            </div>
+        {trace.sales.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            {trace.sales.map((sale) => (
+              <div
+                key={sale.invoiceNumber}
+                className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <DetailRow label="Invoice" value={sale.invoiceNumber} mono />
+                  <DetailRow
+                    label="Quantity sold"
+                    value={`${sale.quantity} pcs`}
+                    mono
+                  />
+                </div>
+                <DetailRow label="Client" value={sale.clientName} />
+                <DetailRow
+                  label="Amount"
+                  value={formatMoney(sale.amount)}
+                  mono
+                />
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={sale.paymentStatus} />
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(sale.date)}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <p className="flex items-center gap-2 py-2 text-sm text-muted-foreground">

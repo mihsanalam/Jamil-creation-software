@@ -68,9 +68,10 @@ export async function GET() {
       scalar(
         `SELECT COUNT(*) AS value FROM work_orders WHERE status = 'IN_PROGRESS'`
       ),
-      // Finished goods sitting in the warehouse.
+      // Finished goods sitting in the warehouse (only what's actually left
+      // counts — a partially sold lot still on the shelf is quantity_remaining).
       scalar(
-        `SELECT COALESCE(SUM(quantity), 0) AS value
+        `SELECT COALESCE(SUM(quantity_remaining), 0) AS value
          FROM finished_products WHERE status = 'IN_STOCK'`
       ),
       // Sales recorded today (by local calendar date).

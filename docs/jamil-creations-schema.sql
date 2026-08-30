@@ -101,6 +101,10 @@ CREATE TABLE finished_products (
   work_order_id     VARCHAR(36) NOT NULL UNIQUE,
   barcode           VARCHAR(100) NOT NULL UNIQUE,
   quantity          DECIMAL(10,2) NOT NULL,
+  -- How much of the lot is still sellable. Starts at `quantity` when the
+  -- product enters stock; every sale_item decrements it. A lot is only
+  -- status='SOLD' once this reaches 0, so partial sells are possible.
+  quantity_remaining DECIMAL(10,2) NOT NULL DEFAULT 0,
   storage_location  VARCHAR(100) NOT NULL,   -- e.g. "Shelf A-3"
   status            ENUM('IN_STOCK','SOLD') NOT NULL DEFAULT 'IN_STOCK',
   date_added        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

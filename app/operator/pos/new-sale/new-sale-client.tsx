@@ -37,7 +37,7 @@ interface ClientOption {
 interface LookupProduct {
   id: string;
   barcode: string;
-  quantity: number;
+  quantityRemaining: number;
   productType: string;
   batchNumber: string;
   storageLocation: string;
@@ -45,12 +45,15 @@ interface LookupProduct {
 
 // One line in the cart. NOTE: there is no price list table yet, so the
 // operator types the unit price manually per item (flagged limitation).
+// `available` is the stock left on the shelf for the lot; `quantity` may be
+// reduced below it to sell just part of a lot.
 interface CartItem {
   productId: string;
   barcode: string;
   productType: string;
   batchNumber: string;
   quantity: number;
+  available: number;
   unitPrice: string;
 }
 
@@ -148,7 +151,8 @@ export function NewSaleClient() {
           barcode: product.barcode,
           productType: product.productType,
           batchNumber: product.batchNumber,
-          quantity: product.quantity,
+          quantity: product.quantityRemaining,
+          available: product.quantityRemaining,
           unitPrice: "",
         },
       ]);
@@ -164,6 +168,24 @@ export function NewSaleClient() {
     setCart((current) =>
       current.map((item) =>
         item.productId === productId ? { ...item, unitPrice: value } : item
+      )
+    );
+  }
+
+  // Sell just part of a lot: clamp the requested quantity to the stock that
+  // is actually left on the shelf (>= 1, <= available). The server performs
+  // the same validation again when the sale is recorded.
+  function updateItemQuantity(productId: string, value: string) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return;
+    setCart((current) =>
+      current.map((item) =>
+        item.productId === productId
+          ? {
+              ...item,
+              quantity: Math.min(Math.max(parsed, 1), item.available),
+            }
+          : item
       )
     );
   }
@@ -350,7 +372,23 @@ export function NewSaleClient() {
                       {item.barcode} · {item.batchNumber}
                     </p>
                   </td>
-                  <td className="px-4 py-3">{item.quantity} pcs</td>
+                  <td className="px-4 py-3">
+                    <Input
+                      type="number"
+                      min="1"
+                      max={item.available}
+                      step="1"
+                      value={item.quantity}
+                      onChange={(event) =>
+                        updateItemQuantity(item.productId, event.target.value)
+                      }
+                      aria-label={`Quantity of ${item.barcode}`}
+                      className="h-9 w-24"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {item.available} left in stock
+                    </p>
+                  </td>
                   <td className="px-4 py-3">
                     <Input
                       type="number"

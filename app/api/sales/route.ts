@@ -25,6 +25,7 @@ interface ProductRow extends RowDataPacket {
   id: string;
   status: string;
   quantity: string;
+  quantity_remaining: string;
 }
 
 const PAYMENT_METHODS = new Set(["CASH", "BKASH", "NAGAD", "BANK_TRANSFER"]);
@@ -56,9 +57,9 @@ function round2(value: number) {
  *      amountPaid > 0 but less, 'DUE' if amountPaid = 0.
  *   d. Insert the sale.
  *   e. Insert one sale_items row per item.
- *   f. Mark every sold finished product as 'SOLD' (MVP assumption: the full
- *      quantity goes in one sale — partial stock splitting is a future
- *      enhancement).
+ *   f. Subtract the sold quantity from each product's quantity_remaining;
+ *      only flip the product to 'SOLD' once quantity_remaining reaches 0, so
+ *      a partial lot can keep selling from its remaining stock.
  */
 export async function POST(request: Request) {
   const session = await auth();
@@ -180,10 +181,11 @@ export async function POST(request: Request) {
         }
 
         // Lock every product first so the stock/status checks and the
-        // status flip below are atomic against other concurrent sales.
+        // quantity_remaining decrement below are atomic against other
+        // concurrent sales.
         for (const item of items) {
           const [productRows] = await connection.query<ProductRow[]>(
-            `SELECT id, status, quantity FROM finished_products
+            `SELECT id, status, quantity, quantity_remaining FROM finished_products
              WHERE id = ?
              LIMIT 1
              FOR UPDATE`,
@@ -204,13 +206,12 @@ export async function POST(request: Request) {
               { status: 409 }
             );
           }
-          if (item.quantity > Number(product.quantity)) {
+          const available = Number(product.quantity_remaining);
+          if (item.quantity > available) {
             await connection.rollback();
             return NextResponse.json(
               {
-                message: `Item quantity exceeds the ${Number(
-                  product.quantity
-                )} pcs available in stock.`,
+                message: `Item quantity exceeds the ${available} pcs left in stock.`,
               },
               { status: 400 }
             );
@@ -253,7 +254,9 @@ export async function POST(request: Request) {
           ]
         );
 
-        // One sale_items row per item, then flip the product to SOLD.
+        // One sale_items row per item, then decrement the product's remaining
+        // stock. The product (already SELECT ... FOR UPDATE above) stays
+        // IN_STOCK while anything is left, and only flips to SOLD at 0.
         for (const item of items) {
           await connection.query<ResultSetHeader>(
             `INSERT INTO sale_items
@@ -269,8 +272,11 @@ export async function POST(request: Request) {
             ]
           );
           await connection.query<ResultSetHeader>(
-            `UPDATE finished_products SET status = 'SOLD' WHERE id = ?`,
-            [item.finishedProductId]
+            `UPDATE finished_products
+             SET quantity_remaining = GREATEST(quantity_remaining - ?, 0),
+                 status = IF(quantity_remaining - ? <= 0, 'SOLD', status)
+             WHERE id = ?`,
+            [item.quantity, item.quantity, item.finishedProductId]
           );
         }
 

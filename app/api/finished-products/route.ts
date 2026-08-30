@@ -11,6 +11,7 @@ interface FinishedProductRow extends RowDataPacket {
   work_order_id: string;
   barcode: string;
   quantity: string;
+  quantity_remaining: string;
   storage_location: string;
   status: string;
   date_added: Date;
@@ -91,8 +92,8 @@ export async function GET(request: Request) {
   try {
     const [rows] = await db.query<FinishedProductRow[]>(
       `SELECT fp.id, fp.work_order_id, fp.barcode, fp.quantity,
-              fp.storage_location, fp.status, fp.date_added,
-              fb.batch_number, wo.product_type
+              fp.quantity_remaining, fp.storage_location, fp.status,
+              fp.date_added, fb.batch_number, wo.product_type
        FROM finished_products fp
        JOIN work_orders wo ON wo.id = fp.work_order_id
        JOIN fabric_batches fb ON fb.id = wo.fabric_batch_id
@@ -107,6 +108,7 @@ export async function GET(request: Request) {
         workOrderId: row.work_order_id,
         barcode: row.barcode,
         quantity: Number(row.quantity),
+        quantityRemaining: Number(row.quantity_remaining),
         storageLocation: row.storage_location,
         status: row.status,
         dateAdded: row.date_added,
@@ -238,9 +240,10 @@ export async function POST(request: Request) {
         quantity = Number(order.quantity);
         await connection.query<ResultSetHeader>(
           `INSERT INTO finished_products
-             (id, work_order_id, barcode, quantity, storage_location, status)
-           VALUES (?, ?, ?, ?, ?, 'IN_STOCK')`,
-          [id, workOrderId, barcode, order.quantity, storageLocation]
+             (id, work_order_id, barcode, quantity, quantity_remaining,
+              storage_location, status)
+           VALUES (?, ?, ?, ?, ?, ?, 'IN_STOCK')`,
+          [id, workOrderId, barcode, order.quantity, order.quantity, storageLocation]
         );
 
         await connection.commit();
@@ -262,6 +265,7 @@ export async function POST(request: Request) {
         workOrderId,
         barcode,
         quantity,
+        quantityRemaining: quantity,
         storageLocation,
         status: "IN_STOCK",
         dateAdded: new Date(),

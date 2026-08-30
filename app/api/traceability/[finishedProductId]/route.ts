@@ -10,6 +10,7 @@ interface ProductRow extends RowDataPacket {
   work_order_id: string;
   barcode: string;
   quantity: string;
+  quantity_remaining: string;
   storage_location: string;
   status: string;
   date_added: Date;
@@ -31,10 +32,11 @@ interface PhaseRow extends RowDataPacket {
   completed_at: Date | null;
 }
 
-// The sale attached to a product (via sale_items), joined with its client.
+// A sale this product was part of (via sale_items), joined with its client.
 interface SaleRow extends RowDataPacket {
   invoice_number: string;
   client_name: string;
+  quantity: string;
   total: string;
   payment_status: string;
   created_at: Date;
@@ -43,7 +45,8 @@ interface SaleRow extends RowDataPacket {
 /**
  * GET /api/traceability/[finishedProductId] — the FULL trace for one product:
  * fabric batch source, every production phase (in order), its current storage
- * spot, and — once it has been sold — the sale + client it went to.
+ * spot, its remaining stock, and every sale the lot has been part of
+ * (a partial lot can appear in multiple sales over time).
  */
 export async function GET(
   _request: Request,
@@ -59,8 +62,8 @@ export async function GET(
   try {
     const [products] = await db.query<ProductRow[]>(
       `SELECT fp.id, fp.work_order_id, fp.barcode, fp.quantity,
-              fp.storage_location, fp.status, fp.date_added,
-              wo.product_type,
+              fp.quantity_remaining, fp.storage_location, fp.status,
+              fp.date_added, wo.product_type,
               fb.batch_number, fb.fabric_type, fb.quantity AS batch_quantity,
               fb.unit, fb.supplier, fb.date_received
        FROM finished_products fp
@@ -86,37 +89,36 @@ export async function GET(
       [product.work_order_id]
     );
 
-    // Sale info exists only once the product has left stock; otherwise we hand
-    // the page a null so it renders "Not yet sold" instead of erroring.
-    let sale = null;
-    if (product.status === "SOLD") {
-      const [sales] = await db.query<SaleRow[]>(
-        `SELECT s.invoice_number, s.total, s.payment_status, s.created_at,
-                c.name AS client_name
-         FROM sale_items si
-         JOIN sales s ON s.id = si.sale_id
-         JOIN clients c ON c.id = s.client_id
-         WHERE si.finished_product_id = ?
-         LIMIT 1`,
-        [finishedProductId]
-      );
-      const saleRow = sales[0];
-      if (saleRow) {
-        sale = {
-          invoiceNumber: saleRow.invoice_number,
-          clientName: saleRow.client_name,
-          date: saleRow.created_at,
-          amount: Number(saleRow.total),
-          paymentStatus: saleRow.payment_status,
-        };
-      }
-    }
+    // Every sale this lot has been part of. A product can now appear in
+    // multiple sales over time (partial sells), so this lists them all —
+    // newest first — regardless of its current status. Each row carries the
+    // number of units sold in that particular sale.
+    const [sales] = await db.query<SaleRow[]>(
+      `SELECT s.invoice_number, s.total, s.payment_status, s.created_at,
+              si.quantity,
+              c.name AS client_name
+       FROM sale_items si
+       JOIN sales s ON s.id = si.sale_id
+       JOIN clients c ON c.id = s.client_id
+       WHERE si.finished_product_id = ?
+       ORDER BY s.created_at DESC`,
+      [finishedProductId]
+    );
+    const salesList = sales.map((saleRow) => ({
+      invoiceNumber: saleRow.invoice_number,
+      clientName: saleRow.client_name,
+      date: saleRow.created_at,
+      quantity: Number(saleRow.quantity),
+      amount: Number(saleRow.total),
+      paymentStatus: saleRow.payment_status,
+    }));
 
     return NextResponse.json({
       product: {
         id: product.id,
         barcode: product.barcode,
         quantity: Number(product.quantity),
+        quantityRemaining: Number(product.quantity_remaining),
         status: product.status,
       },
       productType: product.product_type,
@@ -139,7 +141,7 @@ export async function GET(
         location: product.storage_location,
         dateAdded: product.date_added,
       },
-      sale,
+      sales: salesList,
     });
   } catch (error) {
     console.error("Failed to load traceability:", error);

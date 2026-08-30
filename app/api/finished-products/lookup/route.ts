@@ -9,7 +9,7 @@ interface LookupRow extends RowDataPacket {
   id: string;
   work_order_id: string;
   barcode: string;
-  quantity: string;
+  quantity_remaining: string;
   storage_location: string;
   status: string;
   date_added: Date;
@@ -19,8 +19,10 @@ interface LookupRow extends RowDataPacket {
 
 /**
  * GET /api/finished-products/lookup?barcode=JC-0001 — returns ONE product by
- * its exact barcode, but only while it is still IN_STOCK. Returns 404 when
- * the barcode is unknown or the product has already been sold, so the POS
+ * its exact barcode, but only while it still has sellable stock left
+ * (quantity_remaining > 0). quantity_remaining is returned as the sellable
+ * quantity, so a partially-sold lot can be scanned again for its remaining
+ * units. Returns 404 when the barcode is unknown or fully sold, so the POS
  * scanner can reject double-selling straight away.
  */
 export async function GET(request: Request) {
@@ -40,13 +42,14 @@ export async function GET(request: Request) {
 
   try {
     const [rows] = await db.query<LookupRow[]>(
-      `SELECT fp.id, fp.work_order_id, fp.barcode, fp.quantity,
+      `SELECT fp.id, fp.work_order_id, fp.barcode, fp.quantity_remaining,
               fp.storage_location, fp.status, fp.date_added,
               fb.batch_number, wo.product_type
        FROM finished_products fp
        JOIN work_orders wo ON wo.id = fp.work_order_id
        JOIN fabric_batches fb ON fb.id = wo.fabric_batch_id
        WHERE fp.barcode = ?
+         AND fp.quantity_remaining > 0
        LIMIT 1`,
       [barcode]
     );
@@ -63,7 +66,8 @@ export async function GET(request: Request) {
       id: row.id,
       workOrderId: row.work_order_id,
       barcode: row.barcode,
-      quantity: Number(row.quantity),
+      quantity: Number(row.quantity_remaining),
+      quantityRemaining: Number(row.quantity_remaining),
       storageLocation: row.storage_location,
       status: row.status,
       dateAdded: row.date_added,

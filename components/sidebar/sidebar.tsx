@@ -48,7 +48,6 @@ const NAV_BY_ROLE: Record<UserRole, { subtitle: string; items: NavItem[] }> = {
       { label: "Batch List", href: "/collector/batch-list", key: "batch-list", icon: ScrollText },
       { label: "Finished Goods Intake", href: "/collector/finished-goods", key: "finished-goods", icon: Boxes },
       { label: "Stock Search", href: "/collector/warehouse-search", key: "warehouse-search", icon: Warehouse },
-      { label: "Sales & Dues", href: "/collector/sales-dues", key: "sales-dues", icon: ReceiptText },
     ],
   },
   OPERATOR: {
