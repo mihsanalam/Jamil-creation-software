@@ -1,10 +1,5 @@
-import { PagePlaceholder } from "@/components/shared/page-placeholder";
+import SalesDuesClient from "./sales-dues-client";
 
 export default function SalesDuesPage() {
-  return (
-    <PagePlaceholder
-      title="Sales & Dues"
-      description="Invoices, payments and outstanding balances across all clients."
-    />
-  );
+  return <SalesDuesClient />;
 }
