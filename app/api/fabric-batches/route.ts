@@ -54,6 +54,7 @@ export async function GET(request: Request) {
     date_received: Date;
     description: string | null;
     process_notes: string | null;
+    image_url: string | null;
     status: string;
     created_at: Date;
     recordedByName: string;
@@ -82,7 +83,7 @@ export async function GET(request: Request) {
     const [rows] = await db.query<BatchListRow[]>(
       `SELECT fb.id, fb.batch_number, fb.fabric_type, fb.quantity, fb.unit,
               fb.supplier, fb.date_received, fb.description, fb.process_notes,
-              fb.status, fb.created_at, u.name AS recordedByName,
+              fb.image_url, fb.status, fb.created_at, u.name AS recordedByName,
               (SELECT p.name
                FROM work_order_phases p
                JOIN work_orders wo ON wo.id = p.work_order_id
@@ -110,6 +111,7 @@ export async function GET(request: Request) {
         dateReceived: row.date_received,
         description: row.description,
         processNotes: row.process_notes,
+        imageUrl: row.image_url,
         status: row.status,
         currentPhase: row.current_phase,
         createdAt: row.created_at,
@@ -194,6 +196,14 @@ export async function POST(request: Request) {
     typeof body.processNotes === "string" && body.processNotes.trim() !== ""
       ? body.processNotes.trim()
       : null;
+  // Optional fabric photo path, previously uploaded via POST /api/uploads.
+  // Only paths inside /uploads/fabric/ are accepted so a client can't point
+  // the record at an arbitrary URL or file on the server.
+  const imageUrl =
+    typeof body.imageUrl === "string" &&
+    /^\/uploads\/fabric\/[A-Za-z0-9._-]+$/.test(body.imageUrl)
+      ? body.imageUrl
+      : null;
   // Fall back to today when the client omits the date ("YYYY-MM-DD" from the form).
   const dateReceived =
     typeof body.dateReceived === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.dateReceived)
@@ -238,8 +248,9 @@ export async function POST(request: Request) {
         await connection.query(
           `INSERT INTO fabric_batches
              (id, batch_number, fabric_type, quantity, unit, supplier,
-              date_received, description, process_notes, status, recorded_by_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)`,
+              date_received, description, process_notes, image_url,
+              status, recorded_by_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)`,
           [
             id,
             batchNumber,
@@ -250,6 +261,7 @@ export async function POST(request: Request) {
             dateReceived,
             description,
             processNotes,
+            imageUrl,
             session.user.id,
           ]
         );
@@ -277,6 +289,7 @@ export async function POST(request: Request) {
         dateReceived,
         description,
         processNotes,
+        imageUrl,
         status: "PENDING",
         recordedById: session.user.id,
       },

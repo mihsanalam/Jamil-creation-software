@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,13 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Must match the server-side limit in /api/uploads.
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+function clearPreview(url: string | null) {
+  if (url) URL.revokeObjectURL(url);
+}
+
 export function FabricIntakeForm() {
   const [fabricType, setFabricType] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -38,16 +45,68 @@ export function FabricIntakeForm() {
   const [dateReceived, setDateReceived] = useState(today);
   const [description, setDescription] = useState("");
   const [processNotes, setProcessNotes] = useState("");
+  // Optional fabric photo — kept as a File until submit, then uploaded via
+  // /api/uploads first so the batch row can reference the saved path.
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // The most recent batch number this session generated — stays visible in
   // the read-only strip even after the form resets for the next entry.
   const [lastBatchNumber, setLastBatchNumber] = useState<string | null>(null);
+
+  // Thumbnail preview on file select; the size is checked here too so the
+  // user learns about a too-large photo before waiting on an upload.
+  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) {
+      clearPhoto();
+      return;
+    }
+    if (file.size > PHOTO_MAX_BYTES) {
+      toast.error("Image is too large — the limit is 5 MB.");
+      event.target.value = "";
+      return;
+    }
+    clearPreview(photoPreview);
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  function clearPhoto() {
+    clearPreview(photoPreview);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
 
     try {
+      // Upload the photo first (if one was picked) so the batch row can
+      // reference the saved path; the file never goes through the JSON POST.
+      let imageUrl: string | null = null;
+      if (photoFile) {
+        const uploadForm = new FormData();
+        uploadForm.append("file", photoFile);
+        const uploadResponse = await fetch("/api/uploads", {
+          method: "POST",
+          body: uploadForm,
+        });
+        if (!uploadResponse.ok) {
+          const uploadData = await uploadResponse.json().catch(() => null);
+          toast.error(
+            uploadData?.message ??
+              "Could not upload the fabric photo. Please try again."
+          );
+          return;
+        }
+        const uploadData = await uploadResponse.json();
+        imageUrl = uploadData.path;
+      }
+
       const response = await fetch("/api/fabric-batches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,6 +118,7 @@ export function FabricIntakeForm() {
           dateReceived,
           description,
           processNotes,
+          imageUrl,
         }),
       });
 
@@ -79,6 +139,7 @@ export function FabricIntakeForm() {
       setDateReceived(today());
       setDescription("");
       setProcessNotes("");
+      clearPhoto();
 
       toast.success(`Batch ${data.batchNumber} saved`, {
         description: `${quantity} ${unit} of ${fabricType} from ${supplierName}.`,
@@ -201,6 +262,44 @@ export function FabricIntakeForm() {
               onChange={(event) => setSupplierName(event.target.value)}
               className={FIELD}
             />
+          </div>
+
+          {/* Fabric photo (optional) */}
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <Label htmlFor="fabric-photo" className="text-sm font-semibold text-charcoal">
+              Fabric photo (optional)
+            </Label>
+            <div className="flex items-center gap-3">
+              {photoPreview ? (
+                /* eslint-disable-next-line @next/next/no-img-element -- local blob preview, not a servable asset yet */
+                <img
+                  src={photoPreview}
+                  alt="Selected fabric photo preview"
+                  className="size-16 shrink-0 rounded-lg border border-border object-cover"
+                />
+              ) : null}
+              <Input
+                ref={photoInputRef}
+                id="fabric-photo"
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className={cn(
+                  FIELD,
+                  "file:mr-3 file:rounded-md file:border-0 file:bg-gold/15 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-charcoal hover:file:bg-gold/25"
+                )}
+              />
+              {photoPreview ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={clearPhoto}
+                  className="h-10 shrink-0 rounded-lg"
+                >
+                  Remove
+                </Button>
+              ) : null}
+            </div>
           </div>
         </div>
 

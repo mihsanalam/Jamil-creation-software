@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import useSWR from "swr";
 import { Eye, Search } from "lucide-react";
 
@@ -29,6 +30,7 @@ export interface FabricBatch {
   dateReceived: string;
   description: string | null;
   processNotes: string | null;
+  imageUrl: string | null;
   status: string;
   currentPhase: string | null;
   createdAt: string;
@@ -78,11 +80,27 @@ export function BatchListClient() {
   if (status !== "all") query.set("status", status);
   if (search) query.set("search", search);
 
-  const { data, error, isLoading } = useSWR<FabricBatch[]>(
+  const { data, error, isLoading, mutate } = useSWR<FabricBatch[]>(
     `/api/fabric-batches?${query.toString()}`,
     fetcher,
     { refreshInterval: 8000, keepPreviousData: true }
   );
+
+  // Called by the detail dialog after a photo add/change/remove PATCH, so the
+  // list (and the open dialog) reflect the change without waiting for the
+  // next 8s poll.
+  function handleBatchUpdated(updated: Partial<FabricBatch> & { id: string }) {
+    setSelectedBatch((current) =>
+      current && current.id === updated.id ? { ...current, ...updated } : current
+    );
+    mutate(
+      (rows) =>
+        rows?.map((batch) =>
+          batch.id === updated.id ? { ...batch, ...updated } : batch
+        ),
+      { revalidate: false }
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -197,7 +215,18 @@ export function BatchListClient() {
               {data?.map((batch) => (
                 <TableRow key={batch.id} className="hover:bg-gold/6">
                   <TableCell className="py-3.5 pl-6 font-mono text-sm font-medium text-charcoal">
-                    {batch.batchNumber}
+                    <div className="flex items-center gap-2.5">
+                      {batch.imageUrl && (
+                        <Image
+                          src={batch.imageUrl}
+                          alt={`Fabric photo of batch ${batch.batchNumber}`}
+                          width={36}
+                          height={36}
+                          className="size-9 shrink-0 rounded-md border border-border object-cover"
+                        />
+                      )}
+                      {batch.batchNumber}
+                    </div>
                   </TableCell>
                   <TableCell className="py-3.5 text-charcoal">{batch.fabricType}</TableCell>
                   <TableCell className="py-3.5 text-charcoal">{batch.supplier}</TableCell>
@@ -240,6 +269,7 @@ export function BatchListClient() {
       <BatchDetailDialog
         batch={selectedBatch}
         onClose={() => setSelectedBatch(null)}
+        onUpdated={handleBatchUpdated}
       />
     </div>
   );

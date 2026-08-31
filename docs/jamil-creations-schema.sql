@@ -36,6 +36,7 @@ CREATE TABLE fabric_batches (
   description     TEXT,
   process_notes   TEXT,
   status          ENUM('PENDING','IN_PRODUCTION','READY','SOLD') NOT NULL DEFAULT 'PENDING',
+  image_url       VARCHAR(500),           -- optional fabric photo under /uploads/fabric
   recorded_by_id  VARCHAR(36) NOT NULL,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (recorded_by_id) REFERENCES users(id)
