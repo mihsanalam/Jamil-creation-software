@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Check, ChevronDown, Loader2, ScanBarcode, Trash2 } from "lucide-react";
@@ -96,6 +96,25 @@ export function NewSaleClient() {
   const [amountPaidInput, setAmountPaidInput] = useState("0");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Scanner handling refs. A USB barcode scanner "types" the barcode and
+  // presses Enter, so the input must hold focus at all times and lookup must
+  // run on Enter only. The pending ref queues a scan that lands while a
+  // lookup is still in flight (fast multi-scanning) instead of dropping it,
+  // and the cart mirror lets the duplicate check see the latest cart without
+  // stale closures during queued scans.
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const pendingScanRef = useRef<string | null>(null);
+  const cartRef = useRef<CartItem[]>([]);
+  useEffect(() => {
+    cartRef.current = cart;
+  }, [cart]);
+  // autoFocus covers the common case, but this client is wrapped in
+  // <Suspense>, so focus once mounted to guarantee the scanner's very first
+  // "typing" lands in this field.
+  useEffect(() => {
+    barcodeInputRef.current?.focus();
+  }, []);
+
   const {
     data: clients,
     isLoading: clientsLoading,
@@ -121,26 +140,42 @@ export function NewSaleClient() {
   const total = Math.max(subtotal - discount, 0);
   const amountPaid = payMode === "FULL" ? total : Number(amountPaidInput) || 0;
 
-  // Barcode scanner / Enter handler — look the product up and add it.
-  async function handleScan(event: FormEvent) {
-    event.preventDefault();
-    const barcode = barcodeInput.trim();
-    if (barcode === "" || isScanning) return;
+  // On a failed/duplicate scan keep the scanned text visible (so the operator
+  // can see what they scanned) but select it — the next scan then replaces it
+  // instead of appending to it.
+  function keepAndSelectBarcodeInput() {
+    const input = barcodeInputRef.current;
+    input?.focus();
+    input?.select();
+  }
 
-    setIsScanning(true);
+  // Look one barcode up and add it to the cart. Never throws — every path
+  // shows its own feedback. On success the input is cleared and re-focused
+  // for the next scan; on failure the text is kept and selected.
+  async function processScan(barcode: string) {
     try {
       const response = await fetch(
         `/api/finished-products/lookup?barcode=${encodeURIComponent(barcode)}`
       );
-      const payload = await response.json().catch(() => null);
+      // The lookup endpoint only returns IN_STOCK lots with stock left, so a
+      // non-ok response covers both "unknown barcode" and "nothing left".
       if (!response.ok) {
-        toast.error(payload?.message ?? "Product not found.");
+        toast.error("Product not found or out of stock.");
+        keepAndSelectBarcodeInput();
         return;
       }
 
-      const product = payload as LookupProduct;
-      if (cart.some((item) => item.productId === product.id)) {
+      const payload = await response.json().catch(() => null);
+      const product = payload as LookupProduct | null;
+      if (!product?.id) {
+        toast.error("Product not found or out of stock.");
+        keepAndSelectBarcodeInput();
+        return;
+      }
+
+      if (cartRef.current.some((item) => item.productId === product.id)) {
         toast.error(`${product.barcode} is already in the cart.`);
+        keepAndSelectBarcodeInput();
         return;
       }
 
@@ -157,8 +192,35 @@ export function NewSaleClient() {
         },
       ]);
       setBarcodeInput("");
+      barcodeInputRef.current?.focus();
     } catch {
       toast.error("Could not reach the server. Please check your connection.");
+      keepAndSelectBarcodeInput();
+    }
+  }
+
+  // Barcode scanner / Enter handler — a USB scanner "types" the barcode and
+  // hits Enter, so the form's onSubmit IS the scan event. The lookup runs on
+  // Enter only, never on every keystroke. While one lookup is in flight a
+  // fast second scan is queued (latest wins) and processed right after, so
+  // rapid multi-scanning never silently drops an item.
+  async function handleScan(event: FormEvent) {
+    event.preventDefault();
+    const barcode = barcodeInput.trim();
+    if (barcode === "") return;
+    if (isScanning) {
+      pendingScanRef.current = barcode;
+      return;
+    }
+
+    let current = barcode;
+    setIsScanning(true);
+    try {
+      do {
+        await processScan(current);
+        current = pendingScanRef.current ?? "";
+        pendingScanRef.current = null;
+      } while (current !== "");
     } finally {
       setIsScanning(false);
     }
@@ -330,21 +392,36 @@ export function NewSaleClient() {
       </Popover>
 
       {/* Barcode scan */}
-      <form onSubmit={handleScan} className="flex max-w-xl gap-2">
-        <div className="relative flex-1">
-          <ScanBarcode className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={barcodeInput}
-            onChange={(event) => setBarcodeInput(event.target.value)}
-            placeholder="Scan barcode or type JC-0001 then press Enter"
-            className="h-11 pl-9 font-mono"
-            autoFocus
-          />
-        </div>
-        <Button type="submit" disabled={barcodeInput.trim() === "" || isScanning}>
-          {isScanning ? <Loader2 className="size-4 animate-spin" /> : "Add"}
-        </Button>
-      </form>
+      <div className="max-w-xl">
+        <form onSubmit={handleScan} className="flex gap-2">
+          <div className="relative flex-1">
+            <ScanBarcode className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              ref={barcodeInputRef}
+              value={barcodeInput}
+              onChange={(event) => setBarcodeInput(event.target.value)}
+              placeholder="Scan barcode or type JC-0001 then press Enter"
+              className="h-11 pl-9 font-mono"
+              autoFocus
+            />
+          </div>
+          <Button type="submit" disabled={barcodeInput.trim() === "" || isScanning}>
+            {isScanning ? <Loader2 className="size-4 animate-spin" /> : "Add"}
+          </Button>
+        </form>
+        {/* Manual fallback for PCs without a scanner attached. */}
+        <p className="mt-2 text-xs text-muted-foreground">
+          No scanner at this PC?{" "}
+          <button
+            type="button"
+            onClick={keepAndSelectBarcodeInput}
+            className="font-semibold text-charcoal underline decoration-gold underline-offset-2 transition-colors hover:text-gold"
+          >
+            Or enter barcode manually
+          </button>{" "}
+          — type it (e.g. JC-0001) and press Enter, exactly like a scan.
+        </p>
+      </div>
 
       {/* Cart */}
       {cart.length === 0 ? (
