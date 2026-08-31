@@ -60,6 +60,10 @@ function round2(value: number) {
  *   f. Subtract the sold quantity from each product's quantity_remaining;
  *      only flip the product to 'SOLD' once quantity_remaining reaches 0, so
  *      a partial lot can keep selling from its remaining stock.
+ *   g. When the customer paid anything at the counter (amountPaid > 0),
+ *      insert a matching payments row so this initial payment shows up in
+ *      the client's payment history (Due Collection) with its amount,
+ *      method and date — exactly like payments collected later.
  */
 export async function POST(request: Request) {
   const session = await auth();
@@ -277,6 +281,25 @@ export async function POST(request: Request) {
                  status = IF(quantity_remaining - ? <= 0, 'SOLD', status)
              WHERE id = ?`,
             [item.quantity, item.quantity, item.finishedProductId]
+          );
+        }
+
+        // Record the payment the customer gave at the counter (if any) in
+        // the payments ledger, tied to this sale. The date column defaults
+        // to NOW(), so the history shows when the money was actually taken.
+        if (amountPaid > 0) {
+          await connection.query<ResultSetHeader>(
+            `INSERT INTO payments
+               (id, client_id, sale_id, amount, method, recorded_by_id)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+              randomUUID(),
+              clientId,
+              saleId,
+              amountPaid,
+              paymentMethod,
+              session.user.id,
+            ]
           );
         }
 

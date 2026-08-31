@@ -201,8 +201,12 @@ INSERT INTO sale_items (id, sale_id, finished_product_id, quantity, unit_price, 
 
 -- ============================================
 -- PAYMENTS
--- The partial payment recorded against the sale above
+-- One payment row per amount actually received at buy time (matching the
+-- sales above: 3000 partial on INV-0001, full payments on INV-0002/0003),
+-- so the Due Collection payment history shows these initial payments too.
 -- ============================================
 
 INSERT INTO payments (id, client_id, sale_id, amount, method, recorded_by_id) VALUES
-('pay_001', 'cl_001', 'sale_001', 3000, 'BANK_TRANSFER', 'usr_operator2');
+('pay_001', 'cl_001', 'sale_001', 3000, 'BANK_TRANSFER', 'usr_operator2'),
+('pay_002', 'cl_002', 'sale_002', 2400, 'CASH',          'usr_operator2'),
+('pay_003', 'cl_001', 'sale_003', 2000, 'CASH',          'usr_operator2');
