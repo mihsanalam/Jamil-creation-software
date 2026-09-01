@@ -319,7 +319,7 @@ export default function SalesDuesClient() {
         <Sidebar role="OWNER" activeRoute="sales-dues" />
 
         <main className="flex-1 overflow-y-auto bg-background">
-          <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="w-full px-6 py-6">
             {/* Header + range picker */}
             <div className="flex items-center justify-between">
               <div>

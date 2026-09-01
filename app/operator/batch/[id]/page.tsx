@@ -22,7 +22,7 @@ export default async function BatchDetailPage({
       <Sidebar role="OPERATOR" />
 
       <main className="flex-1 bg-cream px-4 py-8 md:px-10 md:py-12">
-        <div className="mx-auto w-full max-w-4xl">
+        <div className="w-full">
           <BatchDetailClient workOrderId={id} />
         </div>
       </main>

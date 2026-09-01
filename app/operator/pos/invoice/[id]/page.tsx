@@ -20,7 +20,7 @@ export default async function InvoicePage({
       <Sidebar role="OPERATOR" activeRoute="new-sale" />
 
       <main className="flex-1 bg-cream px-4 py-8 md:px-10 md:py-12">
-        <div className="w-full max-w-3xl">
+        <div className="w-full">
           <InvoiceClient saleId={id} />
         </div>
       </main>

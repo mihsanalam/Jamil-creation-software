@@ -15,7 +15,7 @@ export default function BatchListPage() {
       <Sidebar role="COLLECTOR" activeRoute="batch-list" />
 
       <main className="flex-1 bg-cream px-4 py-8 md:px-10 md:py-12">
-        <div className="w-full max-w-7xl">
+        <div className="w-full">
           <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-3xl font-semibold tracking-tight text-charcoal md:text-4xl">
               Batch list

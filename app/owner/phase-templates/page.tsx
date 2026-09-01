@@ -14,7 +14,7 @@ export default function PhaseTemplatesPage() {
       <Sidebar role="OWNER" activeRoute="phase-templates" />
 
       <main className="flex-1 bg-cream px-4 py-8 md:px-10 md:py-12">
-        <div className="w-full max-w-6xl">
+        <div className="w-full">
           <PhaseTemplatesClient />
         </div>
       </main>
