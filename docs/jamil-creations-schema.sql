@@ -167,3 +167,24 @@ CREATE TABLE payments (
   FOREIGN KEY (sale_id) REFERENCES sales(id),
   FOREIGN KEY (recorded_by_id) REFERENCES users(id)
 );
+
+-- ============================================
+-- RETURNS / EXCHANGES (Feature 5)
+-- ============================================
+
+-- Records a return against one sale_items line. The returned quantity goes
+-- back onto the product's quantity_remaining (and its status flips from
+-- 'SOLD' to 'IN_STOCK' if the lot was fully sold out), but the sale's total
+-- and amount_paid are deliberately NOT adjusted — refunding money is a
+-- business decision (store credit / cash / none for damaged goods) that the
+-- Owner handles manually for now.
+CREATE TABLE returns (
+  id VARCHAR(36) PRIMARY KEY,
+  sale_item_id VARCHAR(36) NOT NULL,
+  quantity DECIMAL(10,2) NOT NULL,
+  reason TEXT,
+  date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  recorded_by_id VARCHAR(36) NOT NULL,
+  FOREIGN KEY (sale_item_id) REFERENCES sale_items(id),
+  FOREIGN KEY (recorded_by_id) REFERENCES users(id)
+);

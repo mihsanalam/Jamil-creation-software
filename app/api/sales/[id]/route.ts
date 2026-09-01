@@ -30,6 +30,7 @@ interface ItemRow extends RowDataPacket {
   barcode: string;
   product_type: string;
   batch_number: string;
+  returned_quantity: string;
 }
 
 /**
@@ -69,7 +70,9 @@ export async function GET(
 
     const [items] = await db.query<ItemRow[]>(
       `SELECT si.id, si.quantity, si.unit_price, si.line_total,
-              fp.barcode, wo.product_type, fb.batch_number
+              fp.barcode, wo.product_type, fb.batch_number,
+              (SELECT COALESCE(SUM(r.quantity), 0)
+               FROM returns r WHERE r.sale_item_id = si.id) AS returned_quantity
        FROM sale_items si
        JOIN finished_products fp ON fp.id = si.finished_product_id
        JOIN work_orders wo ON wo.id = fp.work_order_id
@@ -101,6 +104,7 @@ export async function GET(
         productType: item.product_type,
         batchNumber: item.batch_number,
         quantity: Number(item.quantity),
+        returnedQuantity: Number(item.returned_quantity),
         unitPrice: Number(item.unit_price),
         lineTotal: Number(item.line_total),
       })),
