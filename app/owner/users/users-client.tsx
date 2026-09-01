@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import useSWR from "swr";
-import { Pencil, Plus } from "lucide-react";
+import { KeyRound, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Select,
   SelectContent,
@@ -126,6 +127,11 @@ export function UsersClient() {
   const [editName, setEditName] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
 
+  // Reset-password dialog state.
+  const [resetUser, setResetUser] = useState<AppUser | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+
   // Which row's Activate/Deactivate button is busy right now.
   const [statusBusyId, setStatusBusyId] = useState<string | null>(null);
 
@@ -181,6 +187,44 @@ export function UsersClient() {
   function openEdit(user: AppUser) {
     setEditUser(user);
     setEditName(user.name);
+  }
+
+  function openReset(user: AppUser) {
+    setResetUser(user);
+    setNewPassword("");
+  }
+
+  // PATCH a new password for the selected user.
+  async function handleResetPassword(event: FormEvent) {
+    event.preventDefault();
+    if (!resetUser) return;
+    if (newPassword === "") {
+      toast.error("A new password is required.");
+      return;
+    }
+
+    setIsSavingPassword(true);
+    try {
+      const response = await fetch(`/api/users/${resetUser.id}/reset-password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        toast.error(payload?.message ?? "Could not reset the password.");
+        return;
+      }
+      toast.success(
+        `Password reset for "${resetUser.name}" — share the new password with them directly.`
+      );
+      setResetUser(null);
+      setNewPassword("");
+    } catch {
+      toast.error("Could not reach the server. Please check your connection.");
+    } finally {
+      setIsSavingPassword(false);
+    }
   }
 
   // PATCH name only — role and email stay read-only for the MVP.
@@ -382,6 +426,16 @@ export function UsersClient() {
                         type="button"
                         variant="outline"
                         size="sm"
+                        onClick={() => openReset(user)}
+                        className="h-8 rounded-lg border border-border bg-white px-3 text-xs font-medium text-charcoal transition-colors hover:border-gold hover:bg-gold/5"
+                      >
+                        <KeyRound className="size-3.5" aria-hidden />
+                        Reset password
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
                         onClick={() => toggleStatus(user)}
                         disabled={statusBusyId === user.id}
                         className={cn(
@@ -455,12 +509,12 @@ export function UsersClient() {
                 <Label htmlFor="new-user-password" className="text-sm font-semibold text-charcoal">
                   Password
                 </Label>
-                <Input
+                <PasswordInput
                   id="new-user-password"
-                  type="password"
                   value={form.password}
                   onChange={(event) => setForm({ ...form, password: event.target.value })}
                   placeholder="Temporary password"
+                  autoComplete="new-password"
                   required
                   className={FIELD}
                 />
@@ -563,6 +617,67 @@ export function UsersClient() {
                 className="h-9 rounded-lg bg-charcoal px-6 text-sm font-semibold text-cream shadow-sm transition-all hover:bg-charcoal/85 active:scale-[0.99] disabled:opacity-50"
               >
                 {isSavingName ? "Saving…" : "Save name"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset password dialog */}
+      <Dialog
+        open={resetUser !== null}
+        onOpenChange={(open) => {
+          if (!open) setResetUser(null);
+        }}
+      >
+        <DialogContent className="max-w-md gap-0 rounded-xl p-0 ring-border sm:max-w-md">
+          <div className="border-b border-border bg-cream px-6 py-4">
+            <DialogHeader className="gap-1 text-left">
+              <DialogTitle className="text-base font-semibold text-charcoal">
+                Reset password
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Set a new password for {resetUser?.name ?? "this user"}. There is
+                no email flow — give them the new password directly.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <form onSubmit={handleResetPassword}>
+            <div className="space-y-4 px-6 py-5">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="reset-user-password" className="text-sm font-semibold text-charcoal">
+                  New password
+                </Label>
+                <PasswordInput
+                  id="reset-user-password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  placeholder="New password"
+                  autoComplete="new-password"
+                  required
+                  autoFocus
+                  className={FIELD}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-3 border-t border-border bg-cream/60 px-6 py-3.5 sm:justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setResetUser(null)}
+                disabled={isSavingPassword}
+                className="h-9 rounded-lg text-sm font-medium text-muted-foreground hover:text-charcoal"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSavingPassword || newPassword === ""}
+                className="h-9 rounded-lg bg-charcoal px-6 text-sm font-semibold text-cream shadow-sm transition-all hover:bg-charcoal/85 active:scale-[0.99] disabled:opacity-50"
+              >
+                {isSavingPassword ? "Saving…" : "Reset password"}
               </Button>
             </DialogFooter>
           </form>
