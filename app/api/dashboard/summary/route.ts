@@ -30,6 +30,19 @@ interface ClientDueRow extends RowDataPacket {
   owed: string;
 }
 
+// One recent-return line with its invoice and batch info.
+interface RecentReturnRow extends RowDataPacket {
+  quantity: string;
+  reason: string | null;
+  date: Date;
+  invoice_number: string;
+  product_type: string;
+  batch_number: string;
+  cashback: string | null;
+  due_credit: string | null;
+  is_exchange: number;
+}
+
 // Reads the first numeric cell of a one-row aggregate query.
 async function scalar(sql: string): Promise<number> {
   const [rows] = await db.query<ScalarRow[]>(sql);
@@ -63,6 +76,11 @@ export async function GET() {
       phaseRows,
       recentSales,
       clientsWithDues,
+      returnedPcsToday,
+      cashbackTotal,
+      dueCreditTotal,
+      exchangedPcsTotal,
+      recentReturns,
     ] = await Promise.all([
       // Batches currently moving through production.
       scalar(
@@ -111,6 +129,42 @@ export async function GET() {
          ORDER BY owed DESC
          LIMIT 5`
       ),
+      // Pieces returned today (Return screen + quick invoice returns).
+      scalar(
+        `SELECT COALESCE(SUM(quantity), 0) AS value
+         FROM returns WHERE DATE(date) = CURDATE()`
+      ),
+      // Total cash handed back across all return sessions. The invoice
+      // totals are untouched, so this is the Owner's refund ledger.
+      scalar(
+        `SELECT COALESCE(SUM(cashback), 0) AS value FROM return_batches`
+      ),
+      // Cashback that reduced client dues instead of being paid in cash.
+      scalar(
+        `SELECT COALESCE(SUM(due_credit), 0) AS value FROM return_batches`
+      ),
+      // Pieces given out in exchanges (stock taken back out).
+      scalar(
+        `SELECT COALESCE(SUM(quantity), 0) AS value FROM return_exchanges`
+      ),
+      // Newest return lines with invoice/product/reason context.
+      db.query<RecentReturnRow[]>(
+        `SELECT r.quantity, r.reason, r.date,
+                s.invoice_number, wo.product_type, fb.batch_number,
+                rb.cashback, rb.due_credit,
+                (rb.id IS NOT NULL AND EXISTS(
+                   SELECT 1 FROM return_exchanges re
+                   WHERE re.return_batch_id = rb.id)) AS is_exchange
+         FROM returns r
+         JOIN sale_items si ON si.id = r.sale_item_id
+         JOIN sales s ON s.id = si.sale_id
+         JOIN finished_products fp ON fp.id = si.finished_product_id
+         JOIN work_orders wo ON wo.id = fp.work_order_id
+         JOIN fabric_batches fb ON fb.id = wo.fabric_batch_id
+         LEFT JOIN return_batches rb ON rb.id = r.return_batch_id
+         ORDER BY r.date DESC
+         LIMIT 6`
+      ),
     ]);
 
     // phaseBreakdown as an object keyed by phase name.
@@ -145,6 +199,21 @@ export async function GET() {
       clientsWithDues: clientsWithDues[0].map((row) => ({
         name: row.name,
         amountOwed: Number(row.owed),
+      })),
+      returnedPcsToday,
+      cashbackTotal,
+      dueCreditTotal,
+      exchangedPcsTotal,
+      recentReturns: recentReturns[0].map((row) => ({
+        invoiceNumber: row.invoice_number,
+        productType: row.product_type,
+        batchNumber: row.batch_number,
+        quantity: Number(row.quantity),
+        reason: row.reason,
+        cashback: row.cashback === null ? null : Number(row.cashback),
+        dueCredit: row.due_credit === null ? null : Number(row.due_credit),
+        isExchange: row.is_exchange === 1,
+        date: row.date,
       })),
     });
   } catch (error) {

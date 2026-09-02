@@ -185,6 +185,38 @@ CREATE TABLE returns (
   reason TEXT,
   date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   recorded_by_id VARCHAR(36) NOT NULL,
+  return_batch_id VARCHAR(36) NULL,          -- set when part of a Return screen session
   FOREIGN KEY (sale_item_id) REFERENCES sale_items(id),
+  FOREIGN KEY (recorded_by_id) REFERENCES users(id),
+  FOREIGN KEY (return_batch_id) REFERENCES return_batches(id)
+);
+
+-- One return/exchange session recorded from the Operator's Return screen:
+-- picks an invoice, logs which lines came back, optionally swaps in other
+-- products, and records any cash handed back to the client. The invoice's
+-- own totals are still never modified — the cashback lives here.
+CREATE TABLE return_batches (
+  id VARCHAR(36) PRIMARY KEY,
+  sale_id VARCHAR(36) NOT NULL,
+  cashback DECIMAL(10,2) NOT NULL DEFAULT 0, -- cash actually handed to the client
+  due_credit DECIMAL(10,2) NOT NULL DEFAULT 0, -- part of the cashback applied to the invoice's due instead (no cash moves)
+  notes TEXT,
+  date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  recorded_by_id VARCHAR(36) NOT NULL,
+  FOREIGN KEY (sale_id) REFERENCES sales(id),
   FOREIGN KEY (recorded_by_id) REFERENCES users(id)
+);
+
+-- Products handed to the client in exchange for the returned goods.
+-- Same price, lower (cashback) or higher (customer pays the difference) —
+-- the price difference shows up in the batch's cashback amount. Stock is
+-- decremented from finished_products exactly like a sale.
+CREATE TABLE return_exchanges (
+  id VARCHAR(36) PRIMARY KEY,
+  return_batch_id VARCHAR(36) NOT NULL,
+  finished_product_id VARCHAR(36) NOT NULL,
+  quantity DECIMAL(10,2) NOT NULL,
+  unit_price DECIMAL(10,2) NOT NULL,
+  FOREIGN KEY (return_batch_id) REFERENCES return_batches(id) ON DELETE CASCADE,
+  FOREIGN KEY (finished_product_id) REFERENCES finished_products(id)
 );
