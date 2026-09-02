@@ -9,10 +9,11 @@ interface ScalarRow extends RowDataPacket {
   value: string | number;
 }
 
-// One day's sales total for the trend line.
+// One day's sales and due totals for the trend chart.
 interface TrendRow extends RowDataPacket {
   day: Date;
   amount: string;
+  due: string;
 }
 
 // One sale joined with its client name.
@@ -124,7 +125,10 @@ export async function GET(request: Request) {
            ${whereSales} AND c.type = 'WHOLESALE'`
         ),
         db.query<TrendRow[]>(
-          `SELECT DATE(s.created_at) AS day, COALESCE(SUM(s.total), 0) AS amount
+          `SELECT DATE(s.created_at) AS day,
+                  COALESCE(SUM(s.total), 0) AS amount,
+                  COALESCE(SUM(CASE WHEN s.payment_status IN ('DUE', 'PARTIAL')
+                                    THEN s.total - s.amount_paid ELSE 0 END), 0) AS due
            FROM sales s
            ${whereSales}
            GROUP BY DATE(s.created_at)
@@ -173,6 +177,7 @@ export async function GET(request: Request) {
       salesTrend: (trendRows[0] ?? []).map((row: TrendRow) => ({
         date: (row.day as Date).toISOString(),
         amount: Number(row.amount),
+        due: Number(row.due),
       })),
       allSales: (saleRows[0] ?? []).map((row: SaleRow) => ({
         id: row.id,

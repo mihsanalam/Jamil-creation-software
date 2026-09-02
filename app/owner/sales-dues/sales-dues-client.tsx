@@ -49,7 +49,7 @@ interface SalesReport {
   retailSales: number;
   wholesaleSales: number;
   totalOutstandingDues: number;
-  salesTrend: { date: string; amount: number }[];
+  salesTrend: { date: string; amount: number; due: number }[];
   allSales: {
     id: string;
     invoiceNumber: string;
@@ -93,7 +93,10 @@ async function fetcher(url: string): Promise<SalesReport> {
 function SalesTrendChart({ data }: { data: SalesReport["salesTrend"] }) {
   return (
     <ChartContainer
-      config={{ amount: { label: "Sales", color: "#D4A73D" } }}
+      config={{
+        amount: { label: "Sales", color: "#D4A73D" },
+        due: { label: "Due", color: "#C2410C" },
+      }}
       className="h-[200px] w-full"
     >
       <RechartsLineChart
@@ -136,13 +139,24 @@ function SalesTrendChart({ data }: { data: SalesReport["salesTrend"] }) {
           dot={{ r: 3 }}
           activeDot={{ r: 5 }}
         />
+        <RechartsLine
+          type="monotone"
+          dataKey="due"
+          stroke="var(--color-due, #C2410C)"
+          strokeWidth={2}
+          strokeDasharray="5 3"
+          dot={{ r: 3 }}
+          activeDot={{ r: 5 }}
+        />
       </RechartsLineChart>
     </ChartContainer>
   );
 }
 
 export default function SalesDuesClient() {
-  const [range, setRange] = useState("this_month");
+  // "all" is the default so the trend line always has enough points to draw
+  // a meaningful line (a month with one sale day renders as a single dot).
+  const [range, setRange] = useState("all");
 
   const {
     data: report,
@@ -382,8 +396,8 @@ export default function SalesDuesClient() {
               <CardHeader className="pb-3">
                 <CardTitle>Sales trend</CardTitle>
                 <CardDescription>
-                  Daily totals for the selected range.{" "}
-                  {RANGE_OPTIONS.find((o) => o.value === range)?.label}
+                  Daily sales (gold) and the unpaid part of each day&apos;s invoices
+                  (dashed) — {RANGE_OPTIONS.find((o) => o.value === range)?.label}
                 </CardDescription>
               </CardHeader>
               <CardContent>
