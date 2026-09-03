@@ -3,6 +3,7 @@ import type { RowDataPacket } from "mysql2/promise";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { isValidFabricImageUrl } from "@/lib/cloudinary";
 
 interface BatchRow extends RowDataPacket {
   id: string;
@@ -10,16 +11,16 @@ interface BatchRow extends RowDataPacket {
   image_url: string | null;
 }
 
-// Same shape the POST handler validates against — only paths previously
-// returned by POST /api/uploads are accepted, so a client can't point the
-// record at an arbitrary URL or file on the server.
-const IMAGE_URL_PATTERN = /^\/uploads\/fabric\/[A-Za-z0-9._-]+$/;
+// The URL is either one previously returned by POST /api/uploads (now a
+// Cloudinary-hosted https URL) or a legacy local path from before the
+// migration — anything else is rejected so a client can't point the record
+// at an arbitrary URL or file on the server.
 
 /**
  * PATCH /api/fabric-batches/[id] — update a batch's fabric photo.
  *
  * Body: { imageUrl: string | null }
- *  - imageUrl: the public path returned by POST /api/uploads (set/change),
+ *  - imageUrl: the Cloudinary URL returned by POST /api/uploads (set/change),
  *    or null to remove the photo entirely.
  *
  * Only the photo is editable this way — production fields like quantity and
@@ -44,18 +45,18 @@ export async function PATCH(
     return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
   }
 
-  // Must be present (null clears the photo); a string must be a valid
-  // upload path previously returned by POST /api/uploads, so a client can't
-  // point the record at an arbitrary URL or file on the server.
+  // Must be present (null clears the photo); a string must be a URL
+  // previously returned by POST /api/uploads, so a client can't point the
+  // record at an arbitrary URL or file on the server.
   const imageUrlRaw = body.imageUrl;
   const imageUrlValid =
     imageUrlRaw === null ||
-    (typeof imageUrlRaw === "string" && IMAGE_URL_PATTERN.test(imageUrlRaw));
+    (typeof imageUrlRaw === "string" && isValidFabricImageUrl(imageUrlRaw));
   if (!imageUrlValid) {
     return NextResponse.json(
       {
         message:
-          "imageUrl must be a path under /uploads/fabric/, or null to remove the photo.",
+          "imageUrl must be a fabric photo URL returned by POST /api/uploads, or null to remove the photo.",
       },
       { status: 400 }
     );

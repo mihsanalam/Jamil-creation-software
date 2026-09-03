@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { isValidFabricImageUrl } from "@/lib/cloudinary";
 
 // Shape of an existing row we care about when generating the next number
 interface BatchNumberRow extends RowDataPacket {
@@ -196,12 +197,12 @@ export async function POST(request: Request) {
     typeof body.processNotes === "string" && body.processNotes.trim() !== ""
       ? body.processNotes.trim()
       : null;
-  // Optional fabric photo path, previously uploaded via POST /api/uploads.
-  // Only paths inside /uploads/fabric/ are accepted so a client can't point
-  // the record at an arbitrary URL or file on the server.
+  // Optional fabric photo URL, previously uploaded via POST /api/uploads
+  // (a Cloudinary-hosted https URL) or a legacy local path from before the
+  // migration. Anything else is rejected so a client can't point the record
+  // at an arbitrary URL or file on the server.
   const imageUrl =
-    typeof body.imageUrl === "string" &&
-    /^\/uploads\/fabric\/[A-Za-z0-9._-]+$/.test(body.imageUrl)
+    typeof body.imageUrl === "string" && isValidFabricImageUrl(body.imageUrl)
       ? body.imageUrl
       : null;
   // Fall back to today when the client omits the date ("YYYY-MM-DD" from the form).

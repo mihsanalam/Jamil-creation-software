@@ -1,19 +1,11 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 
 import { auth } from "@/auth";
-
-// Images are stored on the VPS disk under public/, which is fine at this
-// scale. If the Owner ever wants them on separate cloud storage (S3,
-// Cloudinary, ...) once the VPS disk fills up, this route is the single
-// place to swap — the rest of the app only ever sees the returned path.
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "fabric");
+import { uploadBufferToCloudinary } from "@/lib/cloudinary";
 
 // Accepted image types. The extension is derived from the MIME type, never
-// from the client-supplied filename, so nothing outside this list can land
-// on disk (e.g. no .html/.php with an image name).
+// from the client-supplied filename, so nothing outside this list can be
+// uploaded (e.g. no .html/.php with an image name).
 const ALLOWED_MIME_TYPES: Record<string, string> = {
   "image/jpeg": ".jpg",
   "image/png": ".png",
@@ -26,12 +18,13 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 /**
  * POST /api/uploads — saves one image from a multipart form and returns its
- * public path. Request: multipart/form-data with a single "file" field.
- * Response: { path: "/uploads/fabric/<timestamp>-<random>.<ext>" }
+ * public URL. Request: multipart/form-data with a single "file" field.
+ * Response: { path: "https://res.cloudinary.com/<cloud>/image/upload/v.../fabric/<...>.<ext>" }
  *
- * Files land in public/uploads/fabric/ with a unique timestamp+UUID name
- * (the original filename is never used), so two uploads can never collide
- * and nothing about the client's filesystem is trusted.
+ * Files are uploaded to Cloudinary under the "fabric" folder with a unique
+ * timestamp+UUID public ID (the original filename is never used), so two
+ * uploads can never collide and nothing about the client's filesystem is
+ * trusted. Hosted URLs survive re-deploys, unlike files on the app's disk.
  */
 export async function POST(request: Request) {
   // Middleware skips /api routes, so the session is verified here directly.
@@ -83,18 +76,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    await mkdir(UPLOAD_DIR, { recursive: true });
-
-    const filename = `${Date.now()}-${randomUUID().slice(0, 8)}${extension}`;
-    await writeFile(
-      path.join(UPLOAD_DIR, filename),
+    const result = await uploadBufferToCloudinary(
       Buffer.from(await file.arrayBuffer())
     );
 
-    const publicPath = `/uploads/fabric/${filename}`;
-    return NextResponse.json({ path: publicPath }, { status: 201 });
+    // secure_url is the HTTPS URL permanently hosted by Cloudinary — the
+    // response key stays "path" so existing clients are unaffected.
+    return NextResponse.json({ path: result.secure_url }, { status: 201 });
   } catch (error) {
-    console.error("Failed to save upload:", error);
+    console.error("Failed to upload image to Cloudinary:", error);
     return NextResponse.json(
       { message: "Could not save the image. Please try again." },
       { status: 500 }
