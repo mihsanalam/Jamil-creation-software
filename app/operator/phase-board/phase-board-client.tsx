@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // One phase inside a work order (shape returned by GET /api/work-orders).
@@ -86,6 +87,7 @@ function activePhase(order: WorkOrder): WorkOrderPhase | null {
 }
 
 export function PhaseBoardClient() {
+  const { t } = useLanguage();
 // Screen an operator keeps open — poll every 5s so it feels live.
   const { data, error, isLoading } = useSWR<WorkOrder[]>(
     "/api/work-orders?status=IN_PROGRESS",
@@ -133,17 +135,16 @@ export function PhaseBoardClient() {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-charcoal md:text-4xl">
-            Phase board
+            {t("Phase board")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Every in-progress work order, one active phase on the board.
-            Click a card to open it.
+            {t("Every in-progress work order, one active phase on the board. Click a card to open it.")}
           </p>
         </div>
 
         <div className="flex flex-col gap-2">
           <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Product type
+            {t("Product type")}
           </label>
           <Select
             value={productType}
@@ -153,7 +154,7 @@ export function PhaseBoardClient() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent align="end" className="w-52">
-              <SelectItem value="ALL">All</SelectItem>
+              <SelectItem value="ALL">{t("All")}</SelectItem>
               {productTypes.map((type) => (
                 <SelectItem key={type} value={type}>
                   {type}
@@ -187,7 +188,7 @@ export function PhaseBoardClient() {
       {/* Empty state */}
       {!isLoading && !error && filteredOrders.length === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-white/60 px-6 py-14 text-center text-sm text-muted-foreground">
-          No work orders in progress right now.
+          {t("No work orders in progress right now.")}
         </div>
       )}
 {/* Kanban-style phase columns */}
@@ -231,12 +232,12 @@ export function PhaseBoardClient() {
                           {order.productType}
                         </p>
                         <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-                          {order.quantity} pcs
+                          {order.quantity} {t("pcs")}
                         </p>
 
                         <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
                           <span className="truncate text-xs text-muted-foreground">
-                            {phase.workerName ?? "Unassigned"}
+                            {phase.workerName ?? t("Unassigned")}
                           </span>
                           <span
                             className={cn(
@@ -246,7 +247,7 @@ export function PhaseBoardClient() {
                                 : "text-muted-foreground"
                             )}
                           >
-                            {days} {days === 1 ? "day" : "days"}
+                            {days} {t("days")}
                           </span>
                         </div>
                       </Link>

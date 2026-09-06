@@ -22,6 +22,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // A PENDING fabric batch eligible for a new work order.
@@ -65,6 +66,7 @@ function StepBadge({ n }: { n: number }) {
 }
 
 export function WorkOrderForm() {
+  const { t } = useLanguage();
   const [batchOpen, setBatchOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
 
@@ -126,16 +128,16 @@ export function WorkOrderForm() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not create the work order.");
+        toast.error(payload?.message ?? t("Could not create the work order."));
         return;
       }
-      toast.success(`Work order created from batch ${selectedBatch.batchNumber}`);
+      toast.success(`${t("Work order created from batch")} ${selectedBatch.batchNumber}`);
       // The batch is now IN_PRODUCTION, so clear it from the picker.
       setSelectedBatch(null);
       setSelectedTemplate(null);
       setWorkerNames([]);
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsSubmitting(false);
     }
@@ -145,10 +147,10 @@ export function WorkOrderForm() {
     <div className="space-y-6">
       <header className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold tracking-tight text-charcoal md:text-4xl">
-          Work order
+          {t("Work Order")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Turn a PENDING fabric batch into a work order and assign a worker to each phase.
+          {t("Turn a PENDING fabric batch into a work order and assign a worker to each phase.")}
         </p>
       </header>
 {/* STEP 1 — Pick the fabric batch */}
@@ -156,9 +158,9 @@ export function WorkOrderForm() {
         <div className="mb-4 flex items-center gap-3">
           <StepBadge n={1} />
           <div>
-            <Label className="text-sm font-semibold text-charcoal">Select a fabric batch</Label>
+            <Label className="text-sm font-semibold text-charcoal">{t("Select a fabric batch")}</Label>
             <p className="text-xs text-muted-foreground">
-              Only batches with a PENDING status are eligible.
+              {t("Only batches with a PENDING status are eligible.")}
             </p>
           </div>
         </div>
@@ -184,16 +186,16 @@ export function WorkOrderForm() {
                   </span>
                 </span>
               ) : (
-                <span>Choose a batch…</span>
+                <span>{t("Choose a batch…")}</span>
               )}
               <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", batchOpen && "rotate-180")} aria-hidden />
             </PopoverTrigger>
 
             <PopoverContent className="w-[380px] p-0" align="start" sideOffset={6}>
               <Command>
-                <CommandInput placeholder="Search by batch number, fabric or supplier…" />
+                <CommandInput placeholder={t("Search by batch number, fabric or supplier…")} />
                 <CommandList>
-                  <CommandEmpty>No batches found.</CommandEmpty>
+                  <CommandEmpty>{t("No batches found.")}</CommandEmpty>
                   <CommandGroup>
                     {(batches ?? []).map((batch) => (
                       <CommandItem
@@ -225,8 +227,8 @@ export function WorkOrderForm() {
         <div className="mb-4 flex items-center gap-3">
           <StepBadge n={2} />
           <div>
-            <Label className="text-sm font-semibold text-charcoal">Select a phase template</Label>
-            <p className="text-xs text-muted-foreground">Pick the production plan for this batch.</p>
+            <Label className="text-sm font-semibold text-charcoal">{t("Select a phase template")}</Label>
+            <p className="text-xs text-muted-foreground">{t("Pick the production plan for this batch.")}</p>
           </div>
         </div>
 
@@ -237,7 +239,7 @@ export function WorkOrderForm() {
           </div>
         ) : (templates?.length ?? 0) === 0 ? (
           <p className="rounded-lg border border-dashed border-border bg-white/60 px-4 py-8 text-center text-sm text-muted-foreground">
-            No phase templates yet — an Owner needs to create one first.
+            {t("No phase templates yet — an Owner needs to create one first.")}
           </p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -259,7 +261,7 @@ export function WorkOrderForm() {
                   <span className="flex items-center justify-between gap-2 text-sm font-semibold text-charcoal">
                     {template.name}
                     <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                      {template.steps.length} {template.steps.length === 1 ? "phase" : "phases"}
+                      {template.steps.length} {template.steps.length === 1 ? t("phase") : t("phases")}
                     </span>
                   </span>
                   <span className="text-xs leading-relaxed text-muted-foreground">
@@ -282,16 +284,16 @@ export function WorkOrderForm() {
         <div className="mb-4 flex items-center gap-3">
           <StepBadge n={3} />
           <div>
-            <Label className="text-sm font-semibold text-charcoal">Phases</Label>
+            <Label className="text-sm font-semibold text-charcoal">{t("Phases")}</Label>
             <p className="text-xs text-muted-foreground">
-              The production steps for the selected template, in order.
+              {t("The production steps for the selected template, in order.")}
             </p>
           </div>
         </div>
 
         {!selectedTemplate ? (
           <p className="rounded-lg border border-dashed border-border bg-white/60 px-4 py-6 text-center text-sm text-muted-foreground">
-            Select a template to preview its phases.
+            {t("Select a template to preview its phases.")}
           </p>
         ) : (
           <ol className="space-y-2">
@@ -316,14 +318,14 @@ export function WorkOrderForm() {
         <div className="mb-4 flex items-center gap-3">
           <StepBadge n={4} />
           <div>
-            <Label className="text-sm font-semibold text-charcoal">Assign workers</Label>
-            <p className="text-xs text-muted-foreground">Enter the worker name for each phase.</p>
+            <Label className="text-sm font-semibold text-charcoal">{t("Assign workers")}</Label>
+            <p className="text-xs text-muted-foreground">{t("Enter the worker name for each phase.")}</p>
           </div>
         </div>
 
         {!selectedTemplate ? (
           <p className="rounded-lg border border-dashed border-border bg-white/60 px-4 py-6 text-center text-sm text-muted-foreground">
-            Select a template first.
+            {t("Select a template first.")}
           </p>
         ) : (
           <div className="space-y-3">
@@ -336,7 +338,7 @@ export function WorkOrderForm() {
                   id={`worker-${index}`}
                   value={workerNames[index] ?? ""}
                   onChange={(event) => setWorkerName(index, event.target.value)}
-                  placeholder="Worker name"
+                  placeholder={t("Worker name")}
                   className={FIELD}
                 />
               </div>
@@ -353,16 +355,16 @@ export function WorkOrderForm() {
           title={
             canCreate
               ? undefined
-              : "Select a batch and template, and fill every worker name, to create the work order."
+              : t("The button unlocks once a batch, a template, and every worker are set.")
           }
           className="h-11 rounded-lg bg-gold px-8 text-sm font-semibold text-charcoal shadow-sm transition-all hover:bg-gold/90 active:scale-[0.99] disabled:opacity-50"
         >
-          {isSubmitting ? "Creating…" : "Create work order"}
+          {isSubmitting ? t("Creating…") : t("Create work order")}
         </Button>
         <p className="text-xs text-muted-foreground">
           {canCreate
-            ? "Ready — this will move the batch into production."
-            : "The button unlocks once a batch, a template, and every worker are set."}
+            ? t("Ready — this will move the batch into production.")
+            : t("The button unlocks once a batch, a template, and every worker are set.")}
         </p>
       </div>
     </div>

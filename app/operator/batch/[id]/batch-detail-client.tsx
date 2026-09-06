@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // Shape returned by GET /api/work-orders/[id].
@@ -65,6 +66,7 @@ function formatDate(value: string | null) {
 }
 
 export function BatchDetailClient({ workOrderId }: { workOrderId: string }) {
+  const { t } = useLanguage();
   const { data, error, isLoading, mutate } = useSWR<WorkOrder>(
     `/api/work-orders/${workOrderId}`,
     fetcher<WorkOrder>,
@@ -107,7 +109,7 @@ async function handleMarkComplete() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not mark the phase complete.");
+        toast.error(payload?.message ?? t("Could not mark the phase complete."));
         return;
       }
       await mutate();
@@ -115,11 +117,11 @@ async function handleMarkComplete() {
       setNotes("");
       toast.success(
         payload?.nextPhase
-          ? `"${activePhase.name}" complete — ${payload.nextPhase.name} started.`
-          : "All phases complete — work order finished."
+          ? `"${activePhase.name}" ${t("complete")} — ${payload.nextPhase.name} ${t("started")}.`
+          : t("All phases complete — work order finished.")
       );
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsSaving(false);
     }
@@ -133,7 +135,7 @@ async function handleMarkComplete() {
         className="inline-flex items-center gap-1.5 text-sm font-medium text-charcoal/70 transition-colors hover:text-charcoal"
       >
         <ArrowLeft className="size-4" aria-hidden />
-        Back to phase board
+        {t("Back to phase board")}
       </Link>
 
       {/* Loading skeleton */}
@@ -199,10 +201,10 @@ async function handleMarkComplete() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {isDone
-                        ? `Done ${formatDate(phase.completedAt)}`
+                        ? `${t("Done")} ${formatDate(phase.completedAt)}`
                         : isCurrent
-                          ? "In progress"
-                          : "Waiting"}
+                          ? t("In progress")
+                          : t("Waiting")}
                     </p>
                   </div>
                   {index < data.phases.length - 1 && (
@@ -219,10 +221,10 @@ async function handleMarkComplete() {
                 <Check className="size-6" aria-hidden />
               </span>
               <h2 className="text-lg font-semibold text-charcoal">
-                All phases complete
+                {t("All phases complete")}
               </h2>
               <p className="text-sm text-muted-foreground">
-                This work order is finished and the batch is ready.
+                {t("This work order is finished and the batch is ready.")}
               </p>
             </div>
           ) : activePhase ? (
@@ -230,29 +232,29 @@ async function handleMarkComplete() {
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-base font-semibold text-charcoal">
-                    Current phase
+                    {t("Current phase")}
                   </h2>
                   <p className="text-sm text-muted-foreground">
                     {activePhase.name}
                   </p>
                 </div>
                 <span className="rounded-full bg-gold px-3 py-1 text-xs font-semibold text-charcoal">
-                  In progress
+                  {t("In progress")}
                 </span>
               </div>
 
               <dl className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <div>
                   <dt className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Worker
+                    {t("Worker")}
                   </dt>
                   <dd className="mt-1 text-sm font-medium text-charcoal">
-                    {activePhase.workerName ?? "Unassigned"}
+                    {activePhase.workerName ?? t("Unassigned")}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Started
+                    {t("Started")}
                   </dt>
                   <dd className="mt-1 text-sm font-medium text-charcoal">
                     {formatDate(activePhase.startedAt)}
@@ -260,7 +262,7 @@ async function handleMarkComplete() {
                 </div>
                 <div>
                   <dt className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Quantity in
+                    {t("Quantity in")}
                   </dt>
                   <dd className="mt-1 font-mono text-sm font-medium text-charcoal">
                     {activePhase.qtyIn ?? "—"}
@@ -270,7 +272,7 @@ async function handleMarkComplete() {
 <div className="mb-5 grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="qty-out" className="text-sm font-semibold text-charcoal">
-                    Quantity out
+                    {t("Quantity out")}
                   </Label>
                   <Input
                     id="qty-out"
@@ -285,11 +287,11 @@ async function handleMarkComplete() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="notes" className="text-sm font-semibold text-charcoal">
-                    Notes
+                    {t("Notes")}
                   </Label>
                   <Textarea
                     id="notes"
-                    placeholder="Any notes on this phase…"
+                    placeholder={t("Any notes on this phase…")}
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
                     className="min-h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
@@ -305,16 +307,16 @@ async function handleMarkComplete() {
                 {isSaving ? (
                   <>
                     <Loader2 className="size-4 animate-spin" aria-hidden />
-                    Saving…
+                    {t("Saving…")}
                   </>
                 ) : (
-                  "Mark phase complete"
+                  t("Mark phase complete")
                 )}
               </Button>
             </section>
           ) : (
             <div className="rounded-xl border border-dashed border-border bg-white/60 px-6 py-12 text-center text-sm text-muted-foreground">
-              No active phase to update.
+              {t("No active phase to update.")}
             </div>
           )}
 
@@ -322,7 +324,7 @@ async function handleMarkComplete() {
           {completedPhases.length > 0 && (
             <section className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-border">
               <h2 className="mb-4 text-base font-semibold text-charcoal">
-                Activity log
+                {t("Activity log")}
               </h2>
               <ul className="divide-y divide-border">
                 {[...completedPhases]
@@ -338,7 +340,7 @@ async function handleMarkComplete() {
                         </span>
                       </div>
                       <span className="text-sm text-muted-foreground">
-                        {phase.workerName ?? "Unassigned"} &middot;{" "}
+                        {phase.workerName ?? t("Unassigned")} &middot;{" "}
                         {formatDate(phase.completedAt)}
                       </span>
                     </li>
