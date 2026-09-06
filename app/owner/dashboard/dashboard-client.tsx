@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n";
 
 // Full payload returned by GET /api/dashboard/summary.
 interface DashboardSummary {
@@ -90,6 +91,7 @@ function formatToday() {
 }
 
 export function DashboardClient() {
+  const { t } = useLanguage();
   // The Owner keeps this screen open — poll every 10s so it feels live.
   const { data, error, isLoading } = useSWR<DashboardSummary>(
     "/api/dashboard/summary",
@@ -105,7 +107,7 @@ export function DashboardClient() {
       {/* Page header */}
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="font-display text-3xl font-bold text-foreground">
-          Dashboard
+          {t("Dashboard")}
         </h1>
         <p className="text-sm text-muted-foreground">{formatToday()}</p>
       </div>
@@ -124,33 +126,33 @@ export function DashboardClient() {
         ) : (
           <>
             <MetricCard
-              label="Batches in production"
+              label={t("Batches in production")}
               value={data?.batchesInProduction ?? 0}
               icon={Layers}
             />
             <MetricCard
-              label="Total stock"
+              label={t("Total stock")}
               value={(data?.totalStock ?? 0).toLocaleString()}
               icon={Package}
             />
             <MetricCard
-              label="Sales today"
+              label={t("Sales today")}
               value={formatMoney(data?.salesToday ?? 0)}
               icon={ShoppingCart}
             />
             <MetricCard
-              label="Outstanding dues"
+              label={t("Outstanding dues")}
               value={formatMoney(data?.outstandingDues ?? 0)}
               icon={Wallet}
               variant="rust"
             />
             <MetricCard
-              label="Returned today"
-              value={`${data?.returnedPcsToday ?? 0} pcs`}
+              label={t("Returned today")}
+              value={`${data?.returnedPcsToday ?? 0} ${t("pcs")}`}
               icon={RotateCcw}
             />
             <MetricCard
-              label="Cashback given"
+              label={t("Cashback given")}
               value={formatMoney(data?.cashbackTotal ?? 0)}
               icon={Wallet}
               variant="rust"
@@ -162,9 +164,9 @@ export function DashboardClient() {
       {error && (
         <Alert variant="destructive">
           <TriangleAlert className="size-4" aria-hidden />
-          <AlertTitle>Could not load the dashboard</AlertTitle>
+          <AlertTitle>{t("Could not load the dashboard")}</AlertTitle>
           <AlertDescription>
-            {error.message}. Showing the last known values.
+            {error.message}. {t("Showing the last known values.")}
           </AlertDescription>
         </Alert>
       )}
@@ -175,11 +177,11 @@ export function DashboardClient() {
         <Alert variant="destructive" className="border-rust/30 bg-rust/10">
           <TriangleAlert className="text-rust" aria-hidden />
           <AlertTitle className="text-rust">
-            {data.bottleneck.name} is backed up
+            {data.bottleneck.name} {t("is backed up")}
           </AlertTitle>
           <AlertDescription>
-            {data.bottleneck.name} has {data.bottleneck.count} batches waiting
-            — check staffing.
+            {data.bottleneck.name} {t("has batches waiting")} {data.bottleneck.count}{" "}
+            — {t("— check staffing.")}
           </AlertDescription>
         </Alert>
       )}
@@ -188,7 +190,7 @@ export function DashboardClient() {
       <section>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-heading text-lg font-medium text-charcoal">
-            Production pipeline
+            {t("Production pipeline")}
           </h2>
         </div>
 
@@ -200,7 +202,7 @@ export function DashboardClient() {
           </div>
         ) : phases.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-white/60 px-6 py-12 text-center text-sm text-muted-foreground">
-            No phases in progress right now.
+            {t("No phases in progress right now.")}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -218,7 +220,7 @@ export function DashboardClient() {
                   {count}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {count === 1 ? "batch" : "batches"} in this phase
+                  {count} {t("batches in this phase")}
                 </span>
               </section>
             ))}
@@ -232,7 +234,7 @@ export function DashboardClient() {
         {/* Recent sales */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent sales</CardTitle>
+            <CardTitle>{t("Recent sales")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -243,15 +245,15 @@ export function DashboardClient() {
               </div>
             ) : (data?.recentSales ?? []).length === 0 ? (
               <p className="py-4 text-sm text-muted-foreground">
-                No sales recorded yet.
+                {t("No sales recorded yet.")}
               </p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Client</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t("Client")}</TableHead>
+                    <TableHead className="text-right">{t("Amount")}</TableHead>
+                    <TableHead>{t("Status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -277,7 +279,7 @@ export function DashboardClient() {
         {/* Clients with dues */}
         <Card>
           <CardHeader>
-            <CardTitle>Clients with dues</CardTitle>
+            <CardTitle>{t("Clients with dues")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -288,14 +290,14 @@ export function DashboardClient() {
               </div>
             ) : (data?.clientsWithDues ?? []).length === 0 ? (
               <p className="py-4 text-sm text-muted-foreground">
-                No outstanding dues — everyone is settled. 🎉
+                {t("No outstanding dues — everyone is settled. 🎉")}
               </p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Client</TableHead>
-                    <TableHead className="text-right">Amount owed</TableHead>
+                    <TableHead>{t("Client")}</TableHead>
+                    <TableHead className="text-right">{t("Amount owed")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -319,7 +321,7 @@ export function DashboardClient() {
       {/* Recent returns & exchanges */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent returns &amp; exchanges</CardTitle>
+          <CardTitle>{t("Recent returns & exchanges")}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -330,19 +332,19 @@ export function DashboardClient() {
             </div>
           ) : (data?.recentReturns ?? []).length === 0 ? (
             <p className="py-4 text-sm text-muted-foreground">
-              No returns or exchanges recorded yet.
+              {t("No returns or exchanges recorded yet.")}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-center">Qty</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead className="text-right">Cashback</TableHead>
+                  <TableHead>{t("Date")}</TableHead>
+                  <TableHead>{t("Invoice")}</TableHead>
+                  <TableHead>{t("Product")}</TableHead>
+                  <TableHead className="text-center">{t("Qty")}</TableHead>
+                  <TableHead>{t("Type")}</TableHead>
+                  <TableHead>{t("Reason")}</TableHead>
+                  <TableHead className="text-right">{t("Cashback")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -373,7 +375,7 @@ export function DashboardClient() {
                             : "border-charcoal/20 bg-charcoal text-cream"
                         )}
                       >
-                        {entry.isExchange ? "Exchange" : "Return"}
+                        {entry.isExchange ? t("Exchange") : t("Return")}
                       </span>
                     </TableCell>
                     <TableCell className="max-w-56 truncate text-muted-foreground">
@@ -386,10 +388,10 @@ export function DashboardClient() {
                             entry.cashback === null || entry.cashback === 0
                               ? null
                               : entry.cashback < 0
-                                ? `client paid ${formatMoney(Math.abs(entry.cashback))}`
+                                ? `${t("client paid")} ${formatMoney(Math.abs(entry.cashback))}`
                                 : formatMoney(entry.cashback),
                             entry.dueCredit && entry.dueCredit > 0
-                              ? `${formatMoney(entry.dueCredit)} to due`
+                              ? `${formatMoney(entry.dueCredit)} ${t("to due")}`
                               : null,
                           ]
                             .filter(Boolean)
@@ -405,9 +407,9 @@ export function DashboardClient() {
               (data?.dueCreditTotal ?? 0) > 0) && (
               <p className="mt-3 text-xs text-muted-foreground">
                 {(data?.exchangedPcsTotal ?? 0) > 0 &&
-                  `${data?.exchangedPcsTotal} pcs have been handed out in exchanges in total. `}
+                  `${data?.exchangedPcsTotal} ${t("pcs have been handed out in exchanges in total.")} `}
                 {(data?.dueCreditTotal ?? 0) > 0 &&
-                  `${formatMoney(data?.dueCreditTotal ?? 0)} of cashback was credited against client dues (no cash moved).`}
+                  `${formatMoney(data?.dueCreditTotal ?? 0)} ${t("of cashback was credited against client dues (no cash moved).")}`}
               </p>
             )}
         </CardContent>

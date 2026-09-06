@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n";
 
 // A user row from GET /api/users. password_hash is never exposed by the API.
 export interface AppUser {
@@ -84,6 +85,7 @@ function formatDate(value: string) {
 
 // Gold pill for Operator, charcoal for Collector — matches the mockup.
 function RoleBadge({ role }: { role: AppUser["role"] }) {
+  const { t } = useLanguage();
   return (
     <Badge
       variant="outline"
@@ -93,13 +95,14 @@ function RoleBadge({ role }: { role: AppUser["role"] }) {
           : "border-charcoal/20 bg-charcoal text-cream"
       )}
     >
-      {role === "OPERATOR" ? "Operator" : "Collector"}
+      {t(role === "OPERATOR" ? "Operator" : "Collector")}
     </Badge>
   );
 }
 
 // Status shown as a colored dot + label (green for active, muted for inactive).
 function StatusCell({ status }: { status: AppUser["status"] }) {
+  const { t } = useLanguage();
   const active = status === "ACTIVE";
   return (
     <span className="inline-flex items-center gap-2 text-sm text-charcoal">
@@ -110,11 +113,12 @@ function StatusCell({ status }: { status: AppUser["status"] }) {
         )}
         aria-hidden
       />
-      {active ? "Active" : "Inactive"}
+      {t(active ? "Active" : "Inactive")}
     </span>
   );
 }
 export function UsersClient() {
+  const { t } = useLanguage();
   const [role, setRole] = useState<string>("all");
 
   // Add-user dialog state.
@@ -152,7 +156,7 @@ export function UsersClient() {
       form.email.trim() === "" ||
       form.password === ""
     ) {
-      toast.error("Name, email and password are required.");
+      toast.error(t("Name, email and password are required."));
       return;
     }
 
@@ -170,10 +174,10 @@ export function UsersClient() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not create the user.");
+        toast.error(payload?.message ?? t("Could not create the user."));
         return;
       }
-      toast.success(`User "${payload.name}" created.`);
+      toast.success(`${t("User")} "${payload.name}" ${t("created.")}`);
       setAddOpen(false);
       setForm(EMPTY_FORM);
       mutate();
@@ -199,7 +203,7 @@ export function UsersClient() {
     event.preventDefault();
     if (!resetUser) return;
     if (newPassword === "") {
-      toast.error("A new password is required.");
+      toast.error(t("New password"));
       return;
     }
 
@@ -212,11 +216,11 @@ export function UsersClient() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not reset the password.");
+        toast.error(payload?.message ?? t("Could not reset the password."));
         return;
       }
       toast.success(
-        `Password reset for "${resetUser.name}" — share the new password with them directly.`
+        `${t("Password reset for")} "${resetUser.name}" — ${t("share the new password with them directly.")}`
       );
       setResetUser(null);
       setNewPassword("");
@@ -232,7 +236,7 @@ export function UsersClient() {
     event.preventDefault();
     if (!editUser) return;
     if (editName.trim() === "") {
-      toast.error("Name can't be empty.");
+      toast.error(t("Name can't be empty."));
       return;
     }
 
@@ -245,14 +249,14 @@ export function UsersClient() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not save the name.");
+        toast.error(payload?.message ?? t("Could not save the name."));
         return;
       }
-      toast.success("Name updated.");
+      toast.success(`${t("User")} "${payload.name}" ${t("Name updated.")}`);
       setEditUser(null);
       mutate();
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsSavingName(false);
     }
@@ -270,13 +274,13 @@ export function UsersClient() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not update the user.");
+        toast.error(payload?.message ?? t("Could not update the user."));
         return;
       }
       toast.success(
         nextStatus === "INACTIVE"
-          ? `"${user.name}" deactivated — they can no longer sign in.`
-          : `"${user.name}" is active again.`
+          ? `"${user.name}" ${t("deactivated — they can no longer sign in.")}`
+          : `"${user.name}" ${t("is active again.")}`
       );
       mutate();
     } catch {
@@ -292,10 +296,10 @@ export function UsersClient() {
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold tracking-tight text-charcoal md:text-4xl">
-            Users
+            {t("Users")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Create and manage the team members who use the system.
+            {t("Create and manage the team members who use the system.")}
           </p>
         </div>
         <Button
@@ -304,7 +308,7 @@ export function UsersClient() {
           className="h-11 shrink-0 rounded-lg bg-gold px-6 text-sm font-semibold text-charcoal shadow-sm transition-all hover:bg-gold/90 active:scale-[0.99]"
         >
           <Plus className="size-4" aria-hidden />
-          Add user
+          {t("Add user")}
         </Button>
       </header>
 
@@ -312,7 +316,7 @@ export function UsersClient() {
       <div className="flex flex-col gap-4 rounded-xl border border-border bg-white p-4 shadow-sm md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col gap-2">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Role
+            {t("Role")}
           </Label>
           <div className="flex flex-wrap gap-2">
             {ROLE_FILTERS.map((filter) => (
@@ -328,7 +332,7 @@ export function UsersClient() {
                     : "border-border bg-white text-muted-foreground hover:border-gold hover:text-charcoal"
                 )}
               >
-                {filter.label}
+                {t(filter.label)}
               </button>
             ))}
           </div>
@@ -337,7 +341,7 @@ export function UsersClient() {
 
       {/* Row count */}
       <p className="text-sm text-muted-foreground">
-        {isLoading ? "Loading…" : `${data?.length ?? 0} users`}
+        {isLoading ? t("Loading…") : `${data?.length ?? 0} ${t("users")}`}
       </p>
 
       {/* Error state */}
@@ -361,8 +365,8 @@ export function UsersClient() {
       {!isLoading && !error && (data?.length ?? 0) === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-white/60 px-6 py-12 text-center text-sm text-muted-foreground">
           {role !== "all"
-            ? "No users match the current filter."
-            : "No users yet. Add your first collector or operator."}
+            ? t("No users match the current filter.")
+            : t("No users yet. Add your first collector or operator.")}
         </div>
       )}
 
@@ -373,22 +377,22 @@ export function UsersClient() {
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="h-11 pl-6 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Name
+                  {t("Name")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Email
+                  {t("Email")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Role
+                  {t("Role")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Status
+                  {t("Status")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Date added
+                  {t("Date added")}
                 </TableHead>
                 <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t("Actions")}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -420,7 +424,7 @@ export function UsersClient() {
                         className="h-8 rounded-lg border border-border bg-white px-3 text-xs font-medium text-charcoal transition-colors hover:border-gold hover:bg-gold/5"
                       >
                         <Pencil className="size-3.5" aria-hidden />
-                        Edit
+                        {t("Edit user")}
                       </Button>
                       <Button
                         type="button"
@@ -430,7 +434,7 @@ export function UsersClient() {
                         className="h-8 rounded-lg border border-border bg-white px-3 text-xs font-medium text-charcoal transition-colors hover:border-gold hover:bg-gold/5"
                       >
                         <KeyRound className="size-3.5" aria-hidden />
-                        Reset password
+                        {t("Reset password")}
                       </Button>
                       <Button
                         type="button"
@@ -446,10 +450,10 @@ export function UsersClient() {
                         )}
                       >
                         {statusBusyId === user.id
-                          ? "Saving…"
+                          ? t("Saving…")
                           : user.status === "ACTIVE"
-                            ? "Deactivate"
-                            : "Activate"}
+                            ? t("Deactivate")
+                            : t("Activate")}
                       </Button>
                     </div>
                   </TableCell>
@@ -466,10 +470,10 @@ export function UsersClient() {
           <div className="border-b border-border bg-cream px-6 py-4">
             <DialogHeader className="gap-1 text-left">
               <DialogTitle className="text-base font-semibold text-charcoal">
-                Add user
+                {t("Add user")}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
-                Create a Collector or Operator account for a team member.
+                {t("Create a Collector or Operator account for a team member.")}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -478,13 +482,13 @@ export function UsersClient() {
             <div className="space-y-4 px-6 py-5">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="new-user-name" className="text-sm font-semibold text-charcoal">
-                  Name
+                  {t("Name")}
                 </Label>
                 <Input
                   id="new-user-name"
                   value={form.name}
                   onChange={(event) => setForm({ ...form, name: event.target.value })}
-                  placeholder="e.g. Karim Hossain"
+                  placeholder={t("e.g. Karim Hossain")}
                   required
                   className={FIELD}
                 />
@@ -492,14 +496,14 @@ export function UsersClient() {
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="new-user-email" className="text-sm font-semibold text-charcoal">
-                  Email
+                  {t("Email")}
                 </Label>
                 <Input
                   id="new-user-email"
                   type="email"
                   value={form.email}
                   onChange={(event) => setForm({ ...form, email: event.target.value })}
-                  placeholder="e.g. karim@jamilcreations.com"
+                  placeholder={t("e.g. karim@jamilcreations.com")}
                   required
                   className={FIELD}
                 />
@@ -507,13 +511,13 @@ export function UsersClient() {
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="new-user-password" className="text-sm font-semibold text-charcoal">
-                  Password
+                  {t("Password")}
                 </Label>
                 <PasswordInput
                   id="new-user-password"
                   value={form.password}
                   onChange={(event) => setForm({ ...form, password: event.target.value })}
-                  placeholder="Temporary password"
+                  placeholder={t("Temporary password")}
                   autoComplete="new-password"
                   required
                   className={FIELD}
@@ -521,7 +525,7 @@ export function UsersClient() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label className="text-sm font-semibold text-charcoal">Role</Label>
+                <Label className="text-sm font-semibold text-charcoal">{t("Role")}</Label>
                 <Select
                   value={form.role}
                   onValueChange={(value) =>
@@ -529,14 +533,14 @@ export function UsersClient() {
                   }
                 >
                   <SelectTrigger
-                    aria-label="Role"
+                    aria-label={t("Role")}
                     className="h-10 w-full rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="COLLECTOR">Collector</SelectItem>
-                    <SelectItem value="OPERATOR">Operator</SelectItem>
+                    <SelectItem value="COLLECTOR">{t("Collector")}</SelectItem>
+                    <SelectItem value="OPERATOR">{t("Operator")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -550,14 +554,14 @@ export function UsersClient() {
                 disabled={isSubmitting}
                 className="h-9 rounded-lg text-sm font-medium text-muted-foreground hover:text-charcoal"
               >
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting}
                 className="h-9 rounded-lg bg-gold px-6 text-sm font-semibold text-charcoal shadow-sm transition-all hover:bg-gold/90 active:scale-[0.99] disabled:opacity-50"
               >
-                {isSubmitting ? "Creating…" : "Create user"}
+                {isSubmitting ? t("Creating…") : t("Create user")}
               </Button>
             </DialogFooter>
           </form>
@@ -575,10 +579,10 @@ export function UsersClient() {
           <div className="border-b border-border bg-cream px-6 py-4">
             <DialogHeader className="gap-1 text-left">
               <DialogTitle className="text-base font-semibold text-charcoal">
-                Edit user
+                {t("Edit user")}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
-                Update the display name. Email and role are fixed for the MVP.
+                {t("Update the display name. Email and role are fixed for the MVP.")}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -587,13 +591,13 @@ export function UsersClient() {
             <div className="space-y-4 px-6 py-5">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="edit-user-name" className="text-sm font-semibold text-charcoal">
-                  Name
+                  {t("Name")}
                 </Label>
                 <Input
                   id="edit-user-name"
                   value={editName}
                   onChange={(event) => setEditName(event.target.value)}
-                  placeholder="e.g. Karim Hossain"
+                  placeholder={t("e.g. Karim Hossain")}
                   required
                   autoFocus
                   className={FIELD}
@@ -609,14 +613,14 @@ export function UsersClient() {
                 disabled={isSavingName}
                 className="h-9 rounded-lg text-sm font-medium text-muted-foreground hover:text-charcoal"
               >
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button
                 type="submit"
                 disabled={isSavingName || editName.trim() === ""}
                 className="h-9 rounded-lg bg-charcoal px-6 text-sm font-semibold text-cream shadow-sm transition-all hover:bg-charcoal/85 active:scale-[0.99] disabled:opacity-50"
               >
-                {isSavingName ? "Saving…" : "Save name"}
+                {isSavingName ? t("Saving…") : t("Save name")}
               </Button>
             </DialogFooter>
           </form>
@@ -634,11 +638,10 @@ export function UsersClient() {
           <div className="border-b border-border bg-cream px-6 py-4">
             <DialogHeader className="gap-1 text-left">
               <DialogTitle className="text-base font-semibold text-charcoal">
-                Reset password
+                {t("Reset password")}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
-                Set a new password for {resetUser?.name ?? "this user"}. There is
-                no email flow — give them the new password directly.
+                {t("Set a new password for")} {resetUser?.name ?? "this user"}. {t("There is no email flow — give them the new password directly.")}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -647,13 +650,13 @@ export function UsersClient() {
             <div className="space-y-4 px-6 py-5">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="reset-user-password" className="text-sm font-semibold text-charcoal">
-                  New password
+                  {t("New password")}
                 </Label>
                 <PasswordInput
                   id="reset-user-password"
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
-                  placeholder="New password"
+                  placeholder={t("New password")}
                   autoComplete="new-password"
                   required
                   autoFocus
@@ -670,14 +673,14 @@ export function UsersClient() {
                 disabled={isSavingPassword}
                 className="h-9 rounded-lg text-sm font-medium text-muted-foreground hover:text-charcoal"
               >
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button
                 type="submit"
                 disabled={isSavingPassword || newPassword === ""}
                 className="h-9 rounded-lg bg-charcoal px-6 text-sm font-semibold text-cream shadow-sm transition-all hover:bg-charcoal/85 active:scale-[0.99] disabled:opacity-50"
               >
-                {isSavingPassword ? "Saving…" : "Reset password"}
+                {isSavingPassword ? t("Saving…") : t("Reset password")}
               </Button>
             </DialogFooter>
           </form>

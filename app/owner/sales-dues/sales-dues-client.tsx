@@ -43,6 +43,7 @@ import { Button } from "@/components/ui/button";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sidebar } from "@/components/sidebar/sidebar";
+import { useLanguage } from "@/lib/i18n";
 
 interface SalesReport {
   totalSales: number;
@@ -154,6 +155,7 @@ function SalesTrendChart({ data }: { data: SalesReport["salesTrend"] }) {
 }
 
 export default function SalesDuesClient() {
+  const { t } = useLanguage();
   // "all" is the default so the trend line always has enough points to draw
   // a meaningful line (a month with one sale day renders as a single dot).
   const [range, setRange] = useState("all");
@@ -188,13 +190,13 @@ export default function SalesDuesClient() {
     if (status === "PAID") {
       return (
         <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">
-          Paid
+          {t("Paid")}
         </Badge>
       );
     }
     return (
       <Badge className="bg-rust/15 text-rust">
-        {status === "PARTIAL" ? "Partial" : "Due"}
+        {t(status === "PARTIAL" ? "Partial" : "Due")}
       </Badge>
     );
   }
@@ -202,11 +204,11 @@ export default function SalesDuesClient() {
   function ClientTypeBadge({ type }: { type: "RETAIL" | "WHOLESALE" }) {
     return type === "WHOLESALE" ? (
       <Badge variant="secondary" className="bg-gold/20 text-charcoal">
-        Wholesale
+        {t("Wholesale")}
       </Badge>
     ) : (
       <Badge variant="secondary" className="bg-charcoal/10 text-charcoal">
-        Retail
+        {t("Retail")}
       </Badge>
     );
   }
@@ -235,7 +237,7 @@ export default function SalesDuesClient() {
     sales: SalesReport["allSales"],
     err: unknown
   ) {
-    if (err) return <EmptyState message="Could not load sales." />;
+    if (err) return <EmptyState message={t("Could not load sales.")} />;
     if (isLoading) {
       return (
         <div className="space-y-2">
@@ -245,18 +247,18 @@ export default function SalesDuesClient() {
         </div>
       );
     }
-    if (sales.length === 0) return <EmptyState message="No sales found for this period." />;
+    if (sales.length === 0) return <EmptyState message={t("No sales in this period.")} />;
     return (
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Invoice</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>{t("Date")}</TableHead>
+              <TableHead>{t("Invoice")}</TableHead>
+              <TableHead>{t("Client")}</TableHead>
+              <TableHead>{t("Type")}</TableHead>
+              <TableHead className="text-right">{t("Amount")}</TableHead>
+              <TableHead>{t("Status")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -281,7 +283,7 @@ export default function SalesDuesClient() {
     clients: SalesReport["clientsWithDues"],
     err: unknown
   ) {
-    if (err) return <EmptyState message="Could not load client balances." />;
+    if (err) return <EmptyState message={t("Could not load client balances.")} />;
     if (isLoading) {
       return (
         <div className="space-y-2">
@@ -291,17 +293,17 @@ export default function SalesDuesClient() {
         </div>
       );
     }
-    if (clients.length === 0) return <EmptyState message="No outstanding dues at the moment." />;
+    if (clients.length === 0) return <EmptyState message={t("No outstanding dues at the moment.")} />;
     return (
       <div className="overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Client</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="text-right">Total owed</TableHead>
-              <TableHead>Last payment</TableHead>
-              <TableHead className="text-center">Actions</TableHead>
+              <TableHead>{t("Client")}</TableHead>
+              <TableHead>{t("Type")}</TableHead>
+              <TableHead className="text-right">{t("Total owed")}</TableHead>
+              <TableHead>{t("Last payment")}</TableHead>
+              <TableHead className="text-center">{t("Actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -315,7 +317,7 @@ export default function SalesDuesClient() {
                 <TableCell className="font-mono text-right">{formatCurrency(client.totalDue)}</TableCell>
                 <TableCell>{client.lastPaymentDate ? formatDate(client.lastPaymentDate) : "—"}</TableCell>
                 <TableCell className="text-center">
-                  <Button variant="outline" size="sm" disabled>Contact</Button>
+                  <Button variant="outline" size="sm" disabled>{t("Contact")}</Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -338,21 +340,21 @@ export default function SalesDuesClient() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="font-heading text-2xl font-semibold text-charcoal">
-                  Sales and dues
+                  {t("Sales and dues")}
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Revenue and outstanding client balances across all sales.
+                  {t("Revenue and outstanding client balances across all sales.")}
                 </p>
               </div>
 
                             <Select value={range} onValueChange={(value) => setRange(value ?? "this_month")}>
                 <SelectTrigger className="w-44">
-                  <SelectValue placeholder="Select range" />
+                  <SelectValue placeholder={t("Select range")} />
                 </SelectTrigger>
                 <SelectContent>
                   {RANGE_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
+                      {t(opt.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -369,22 +371,22 @@ export default function SalesDuesClient() {
             {/* Metric cards */}
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {renderMetric(
-                "Total sales",
+                t("Total sales"),
                 isLoading ? "—" : formatCurrency(report?.totalSales ?? 0),
                 TrendingUp
               )}
               {renderMetric(
-                "Retail sales",
+                t("Retail sales"),
                 isLoading ? "—" : formatCurrency(report?.retailSales ?? 0),
                 FileText
               )}
               {renderMetric(
-                "Wholesale sales",
+                t("Wholesale sales"),
                 isLoading ? "—" : formatCurrency(report?.wholesaleSales ?? 0),
                 Users
               )}
               {renderMetric(
-                "Outstanding dues",
+                t("Outstanding dues"),
                 isLoading ? "—" : formatCurrency(report?.totalOutstandingDues ?? 0),
                 Wallet,
                 "rust"
@@ -394,10 +396,10 @@ export default function SalesDuesClient() {
             {/* Sales trend chart */}
             <Card className="mt-6 border-0 shadow-none">
               <CardHeader className="pb-3">
-                <CardTitle>Sales trend</CardTitle>
+                <CardTitle>{t("Sales trend")}</CardTitle>
                 <CardDescription>
-                  Daily sales (gold) and the unpaid part of each day&apos;s invoices
-                  (dashed) — {RANGE_OPTIONS.find((o) => o.value === range)?.label}
+                  {t("Daily sales (gold) and the unpaid part of each day's invoices")}{" "}
+                  (dashed) — {t(RANGE_OPTIONS.find((o) => o.value === range)?.label ?? "")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -407,7 +409,7 @@ export default function SalesDuesClient() {
                   <SalesTrendChart data={report.salesTrend} />
                 ) : (
                   <div className="text-center text-sm text-muted-foreground">
-                    No sales in this period.
+                    {t("No sales in this period.")}
                   </div>
                 )}
               </CardContent>
@@ -416,9 +418,9 @@ export default function SalesDuesClient() {
             {/* Tabs: All sales / Clients with dues */}
             <Tabs defaultValue="all-sales" className="mt-6">
               <TabsList variant="line">
-                <TabsTrigger value="all-sales">All sales</TabsTrigger>
+                <TabsTrigger value="all-sales">{t("All sales")}</TabsTrigger>
                 <TabsTrigger value="clients-with-dues">
-                  Clients with dues
+                  {t("Clients with dues")}
                 </TabsTrigger>
               </TabsList>
 

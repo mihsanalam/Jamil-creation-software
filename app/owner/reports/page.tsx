@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { Sidebar } from "@/components/sidebar/sidebar";
+import { T } from "@/components/shared/t";
 import { TraceabilityClient } from "./traceability-client";
 
 export const metadata: Metadata = {
@@ -17,12 +18,10 @@ export default function ReportsPage() {
         <div className="w-full">
           <header className="mb-8 flex flex-col gap-2">
             <h1 className="text-3xl font-semibold tracking-tight text-charcoal md:text-4xl">
-              Batch traceability
+              <T>Batch traceability</T>
             </h1>
             <p className="text-sm text-muted-foreground">
-              Pick a finished batch below (or search for it) to trace it back to
-              its original fabric, every production phase, and the sale that sent
-              it out.
+              <T>Pick a finished batch below (or search for it) to trace it back to its original fabric, every production phase, and the sale that sent it out.</T>
             </p>
           </header>
 

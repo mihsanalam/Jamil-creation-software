@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export interface PhaseTemplate {
@@ -39,6 +40,7 @@ const FIELD =
   "h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20";
 
 export function PhaseTemplatesClient() {
+  const { t } = useLanguage();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Draft copy of the selected template — the editor works on this and
   // only pushes it to the API when the user hits "Save template".
@@ -92,13 +94,13 @@ export function PhaseTemplatesClient() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not save the template.");
+        toast.error(payload?.message ?? t("Could not save the template."));
         return;
       }
       await mutate();
-      toast.success(`Template "${payload.name}" saved`);
+      toast.success(`${t("Template")} "${payload.name}" ${t("saved")}`);
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsSaving(false);
     }
@@ -114,7 +116,7 @@ export function PhaseTemplatesClient() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not create the template.");
+        toast.error(payload?.message ?? t("Could not create the template."));
         return;
       }
       await mutate();
@@ -122,9 +124,9 @@ export function PhaseTemplatesClient() {
       setDialogOpen(false);
       setNewName("");
       setNewStep("");
-      toast.success(`Template "${payload.name}" created`);
+      toast.success(`${t("Template")} "${payload.name}" ${t("created")}`);
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsCreating(false);
     }
@@ -183,14 +185,14 @@ export function PhaseTemplatesClient() {
       {/* Header */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-semibold tracking-tight text-charcoal md:text-4xl">
-          Phase templates
+          {t("Phase templates")}
         </h1>
         <Button
           onClick={() => setDialogOpen(true)}
           className="h-11 gap-2 rounded-lg bg-gold px-6 text-sm font-semibold text-charcoal shadow-sm transition-all hover:bg-gold/90 active:scale-[0.99]"
         >
           <Plus className="size-4" aria-hidden />
-          New template
+          {t("New template")}
         </Button>
       </header>
 
@@ -219,7 +221,7 @@ export function PhaseTemplatesClient() {
           <div className="flex flex-col gap-3">
             {(data?.length ?? 0) === 0 && (
               <div className="rounded-xl border border-dashed border-border bg-white/60 px-4 py-10 text-center text-sm text-muted-foreground">
-                No templates yet
+                {t("No templates yet")}
               </div>
             )}
             {data?.map((template) => {
@@ -240,7 +242,7 @@ export function PhaseTemplatesClient() {
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {template.steps.length}{" "}
-                    {template.steps.length === 1 ? "step" : "steps"}
+                    {t(template.steps.length === 1 ? "step" : "steps")}
                   </p>
                 </button>
               );
@@ -251,7 +253,7 @@ export function PhaseTemplatesClient() {
           <div className="rounded-xl bg-white shadow-sm ring-1 ring-border lg:col-span-2">
             {!selectedId ? (
               <div className="px-8 py-16 text-center text-sm text-muted-foreground">
-                Select a template to view its phases
+                {t("Select a template to view its phases")}
               </div>
             ) : (
               <>
@@ -260,7 +262,7 @@ export function PhaseTemplatesClient() {
                     htmlFor="template-name"
                     className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                   >
-                    Template name
+                    {t("Template name")}
                   </Label>
                   <Input
                     id="template-name"
@@ -273,11 +275,10 @@ export function PhaseTemplatesClient() {
 
                 <div className="space-y-3 px-6 py-5">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Steps (in order)
+                    {t("Steps (in order)")}
                   </Label>
                   <p className="-mt-1 text-xs text-muted-foreground">
-                    Drag the grip handle to reorder. Your changes apply when you
-                    save the template.
+                    {t("Drag the grip handle to reorder. Your changes apply when you save the template.")}
                   </p>
 
                   {draftSteps.map((step, index) => (
@@ -298,7 +299,7 @@ export function PhaseTemplatesClient() {
                         draggable
                         onDragStart={() => handleDragStart(index)}
                         onDragEnd={handleDragEnd}
-                        title="Drag to reorder"
+                        title={t("Drag to reorder")}
                         className="cursor-grab select-none rounded-md p-1.5 text-muted-foreground hover:bg-muted active:cursor-grabbing"
                         aria-hidden
                       >
@@ -307,15 +308,15 @@ export function PhaseTemplatesClient() {
                       <Input
                         value={step}
                         onChange={(event) => updateStep(index, event.target.value)}
-                        placeholder={`Step ${index + 1}`}
+                        placeholder={`${t("Step")} ${index + 1}`}
                         className={FIELD}
-                        aria-label={`Step ${index + 1}`}
+                        aria-label={`${t("Step")} ${index + 1}`}
                       />
                       <button
                         type="button"
                         onClick={() => removeStep(index)}
-                        aria-label={`Remove step ${index + 1}`}
-                        title="Remove step"
+                        aria-label={`${t("Remove step")} ${index + 1}`}
+                        title={t("Remove step")}
                         className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive focus-visible:border-destructive focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-destructive/20"
                       >
                         <X className="size-4" aria-hidden />
@@ -325,7 +326,7 @@ export function PhaseTemplatesClient() {
 
                   {draftSteps.length === 0 && (
                     <p className="rounded-lg border border-dashed border-border bg-white/60 px-4 py-6 text-center text-sm text-muted-foreground">
-                      No steps yet — add the first one below.
+                      {t("No steps yet — add the first one below.")}
                     </p>
                   )}
 
@@ -336,22 +337,22 @@ export function PhaseTemplatesClient() {
                     className="mt-1 w-full rounded-lg border border-dashed border-border font-medium text-muted-foreground hover:border-gold hover:bg-gold/10 hover:text-charcoal"
                   >
                     <Plus className="size-4" aria-hidden />
-                    Add step
+                    {t("Add step")}
                   </Button>
                 </div>
 
                 {/* Footer actions */}
                 <div className="flex items-center justify-between gap-3 border-t border-border bg-cream/60 px-6 py-3.5">
                   <p className="text-xs text-muted-foreground">
-                    Saving replaces all steps with the list above.
+                    {t("Saving replaces all steps with the list above.")}
                   </p>
                   <Button
                     onClick={handleSave}
                     disabled={isSaving || dirty}
-                    title={dirty ? "Fill in the name and every step first" : undefined}
+                    title={dirty ? t("Fill in the name and every step first") : undefined}
                     className="h-10 rounded-lg bg-charcoal px-6 text-sm font-semibold text-cream shadow-sm transition-all hover:bg-charcoal/85 active:scale-[0.99] disabled:opacity-50"
                   >
-                    {isSaving ? "Saving…" : "Save template"}
+                    {isSaving ? t("Saving…") : t("Save template")}
                   </Button>
                 </div>
               </>
@@ -366,10 +367,10 @@ export function PhaseTemplatesClient() {
           <div className="border-b border-border bg-cream px-6 py-4">
             <DialogHeader className="gap-1 text-left">
               <DialogTitle className="text-base font-semibold text-charcoal">
-                New phase template
+                {t("New phase template")}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
-                Name it and add its first step — you can edit the rest after.
+                {t("Name it and add its first step — you can edit the rest after.")}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -377,25 +378,25 @@ export function PhaseTemplatesClient() {
           <div className="space-y-4 px-6 py-5">
             <div className="flex flex-col gap-2">
               <Label htmlFor="new-template-name" className="text-sm font-semibold text-charcoal">
-                Template name
+                {t("Template name")}
               </Label>
               <Input
                 id="new-template-name"
                 value={newName}
                 onChange={(event) => setNewName(event.target.value)}
-                placeholder="e.g. Chikankari suit"
+                placeholder={t("e.g. Chikankari suit")}
                 className={FIELD}
               />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="new-template-step" className="text-sm font-semibold text-charcoal">
-                First step
+                {t("First step")}
               </Label>
               <Input
                 id="new-template-step"
                 value={newStep}
                 onChange={(event) => setNewStep(event.target.value)}
-                placeholder="e.g. Cutting"
+                placeholder={t("e.g. Cutting")}
                 className={FIELD}
               />
             </div>
@@ -407,14 +408,14 @@ export function PhaseTemplatesClient() {
               onClick={() => setDialogOpen(false)}
               className="h-9 rounded-lg text-sm font-medium text-muted-foreground hover:text-charcoal"
             >
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button
               onClick={handleCreate}
               disabled={!canCreate || isCreating}
               className="h-9 rounded-lg bg-gold px-6 text-sm font-semibold text-charcoal shadow-sm transition-all hover:bg-gold/90 active:scale-[0.99] disabled:opacity-50"
             >
-              {isCreating ? "Creating…" : "Create template"}
+              {isCreating ? t("Creating…") : t("Create template")}
             </Button>
           </DialogFooter>
         </DialogContent>

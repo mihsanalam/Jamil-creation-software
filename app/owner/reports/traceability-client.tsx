@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n";
 
 // One finished product from GET /api/finished-products — the "done batches"
 // listing that shows on the page before anything has been selected.
@@ -120,10 +121,11 @@ function DetailRow({
   value: string;
   mono?: boolean;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
+        {t(label)}
       </span>
       <span
         className={cn(
@@ -137,6 +139,7 @@ function DetailRow({
   );
 }
 export function TraceabilityClient() {
+  const { t } = useLanguage();
   const [searchInput, setSearchInput] = useState("");
   // Debounced copy of the input so keystrokes don't fire a request each time.
   const [search, setSearch] = useState("");
@@ -185,10 +188,10 @@ export function TraceabilityClient() {
         />
         <Input
           id="traceability-search"
-          placeholder="Search by barcode, batch number, or product type…"
+          placeholder={t("Search by barcode, batch number, or product type…")}
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          aria-label="Search finished products"
+          aria-label={t("Search finished products")}
           className="h-14 rounded-xl border-input bg-white pl-12 text-base shadow-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
         />
       </div>
@@ -202,7 +205,7 @@ export function TraceabilityClient() {
             className="inline-flex items-center gap-1.5 text-sm font-medium text-charcoal/70 transition-colors hover:text-charcoal"
           >
             <ArrowLeft className="size-4" aria-hidden />
-            Back to all batches
+            {t("Back to all batches")}
           </button>
 
           {traceError && (
@@ -239,7 +242,7 @@ export function TraceabilityClient() {
         <>
           {/* Row count */}
           <p className="text-sm text-muted-foreground">
-            {listLoading ? "Loading…" : `${products?.length ?? 0} batches`}
+            {listLoading ? t("Loading…") : `${products?.length ?? 0} ${t("batches")}`}
           </p>
 
           {/* Error state */}
@@ -265,8 +268,8 @@ export function TraceabilityClient() {
               <PackageSearch className="size-8 text-muted-foreground/60" aria-hidden />
               <p className="text-sm text-muted-foreground">
                 {search
-                  ? `No batches match “${search}”.`
-                  : "No finished batches yet. Finished goods that have come into stock will appear here."}
+                ? `${t("No batches match")} “${search}”.`
+                : t("No finished batches yet. Finished goods that have come into stock will appear here.")}
               </p>
             </div>
           )}
@@ -278,19 +281,19 @@ export function TraceabilityClient() {
                 <TableHeader>
                   <TableRow className="bg-muted/50 hover:bg-muted/50">
                     <TableHead className="h-11 pl-6 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                      Product / batch
+                      {t("Product / batch")}
                     </TableHead>
                     <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                      Quantity
+                      {t("Quantity")}
                     </TableHead>
                     <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                      Storage location
+                      {t("Storage location")}
                     </TableHead>
                     <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                      Date added
+                      {t("Date added")}
                     </TableHead>
                     <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                      Status
+                      {t("Status")}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -299,7 +302,7 @@ export function TraceabilityClient() {
                     <TableRow
                       key={product.id}
                       onClick={() => handleSelect(product)}
-                      title={`View trace of ${product.barcode}`}
+                      title={`${t("View trace of")} ${product.barcode}`}
                       className="cursor-pointer hover:bg-gold/6"
                     >
                       <TableCell className="py-3.5 pl-6">
@@ -314,7 +317,7 @@ export function TraceabilityClient() {
                         </div>
                       </TableCell>
                       <TableCell className="py-3.5 font-mono text-charcoal">
-                        {product.quantityRemaining} pcs
+                        {product.quantityRemaining} {t("pcs")}
                       </TableCell>
                       <TableCell className="py-3.5 text-charcoal">
                         {product.storageLocation}
@@ -338,11 +341,12 @@ export function TraceabilityClient() {
 }
 /** Summary card — the fabric batch this product came from. */
 function TraceSummary({ trace }: { trace: ProductTrace }) {
+  const { t } = useLanguage();
   return (
     <Card className="bg-white shadow-sm">
       <CardHeader className="flex flex-row items-start justify-between gap-3">
         <CardTitle className="text-base font-semibold text-charcoal">
-          Product summary
+          {t("Product summary")}
         </CardTitle>
         <Badge
           variant="outline"
@@ -352,7 +356,7 @@ function TraceSummary({ trace }: { trace: ProductTrace }) {
               : "border-green-600/30 bg-green-50 text-green-800"
           )}
         >
-          {trace.product.status === "SOLD" ? "Sold" : "In stock"}
+          {t(trace.product.status === "SOLD" ? "Sold" : "In stock")}
         </Badge>
       </CardHeader>
       <CardContent className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -367,7 +371,7 @@ function TraceSummary({ trace }: { trace: ProductTrace }) {
         <DetailRow label="Barcode" value={trace.product.barcode} mono />
         <DetailRow
           label="Quantity remaining"
-          value={`${trace.product.quantityRemaining} pcs`}
+          value={`${trace.product.quantityRemaining} ${t("pcs")}`}
           mono
         />
       </CardContent>
@@ -377,6 +381,7 @@ function TraceSummary({ trace }: { trace: ProductTrace }) {
 
 /** Horizontal stepper: Fabric in → each phase → Warehouse → Sold (if applicable). */
 function TraceStepper({ trace }: { trace: ProductTrace }) {
+  const { t } = useLanguage();
   const steps: {
     key: string;
     label: string;
@@ -385,7 +390,7 @@ function TraceStepper({ trace }: { trace: ProductTrace }) {
   }[] = [
     {
       key: "fabric",
-      label: "Fabric in",
+      label: t("Fabric in"),
       meta: formatDate(trace.batch.dateReceived),
       completed: true,
     },
@@ -394,15 +399,15 @@ function TraceStepper({ trace }: { trace: ProductTrace }) {
       label: phase.name,
       meta:
         phase.status === "COMPLETED" && phase.completedAt
-          ? `${phase.workerName ?? "Worker"} · ${formatDate(phase.completedAt)}`
+          ? `${phase.workerName ?? t("Worker")} · ${formatDate(phase.completedAt)}`
           : phase.status === "IN_PROGRESS"
-            ? "In progress"
-            : "Pending",
+            ? t("In progress")
+            : t("Pending"),
       completed: phase.status === "COMPLETED",
     })),
     {
       key: "warehouse",
-      label: "Warehouse",
+      label: t("Warehouse"),
       meta: formatDate(trace.storage.dateAdded),
       completed: true,
     },
@@ -411,13 +416,13 @@ function TraceStepper({ trace }: { trace: ProductTrace }) {
       label:
         trace.sales.length > 0
           ? trace.product.status === "SOLD"
-            ? "Sold"
-            : "Partially sold"
-          : "Awaiting sale",
+            ? t("Sold")
+            : t("Partially sold")
+          : t("Awaiting sale"),
       meta:
         trace.sales.length > 0
           ? `${trace.sales[0].clientName} · ${formatDate(trace.sales[0].date)}`
-          : "In stock",
+          : t("In stock"),
       completed: trace.product.status === "SOLD",
     },
   ];
@@ -473,12 +478,13 @@ function TraceStepper({ trace }: { trace: ProductTrace }) {
 }
 /** Storage card — where the product sits now and when it arrived. */
 function StorageCard({ trace }: { trace: ProductTrace }) {
+  const { t } = useLanguage();
   return (
     <Card className="bg-white shadow-sm">
       <CardHeader className="flex flex-row items-center gap-2">
         <Warehouse className="size-4 text-muted-foreground" aria-hidden />
         <CardTitle className="text-base font-semibold text-charcoal">
-          Storage
+          {t("Storage")}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -496,11 +502,12 @@ function StorageCard({ trace }: { trace: ProductTrace }) {
 /** Sale card — every sale the lot has been part of. A partial lot can appear
  * in several sales, so each sale gets its own entry with the units sold. */
 function SaleCard({ trace }: { trace: ProductTrace }) {
+  const { t } = useLanguage();
   return (
     <Card className="bg-white shadow-sm">
       <CardHeader>
         <CardTitle className="text-base font-semibold text-charcoal">
-          Sale details
+          {t("Sale details")}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -515,7 +522,7 @@ function SaleCard({ trace }: { trace: ProductTrace }) {
                   <DetailRow label="Invoice" value={sale.invoiceNumber} mono />
                   <DetailRow
                     label="Quantity sold"
-                    value={`${sale.quantity} pcs`}
+                    value={`${sale.quantity} ${t("pcs")}`}
                     mono
                   />
                 </div>
@@ -537,7 +544,7 @@ function SaleCard({ trace }: { trace: ProductTrace }) {
         ) : (
           <p className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
             <PackageX className="size-4 shrink-0" aria-hidden />
-            Not yet sold — still in stock.
+            {t("Not yet sold — still in stock.")}
           </p>
         )}
       </CardContent>
