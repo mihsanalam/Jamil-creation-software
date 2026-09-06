@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/i18n";
 
 export interface FabricBatch {
   id: string;
@@ -65,6 +66,7 @@ function formatDate(value: string) {
 }
 
 export function BatchListClient() {
+  const { t } = useLanguage();
   const [status, setStatus] = useState<string>("all");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -108,7 +110,7 @@ export function BatchListClient() {
       <div className="flex flex-col gap-4 rounded-xl border border-border bg-white p-4 shadow-sm md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col gap-2">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Status
+            {t("Status")}
           </Label>
           <div className="flex flex-wrap gap-2">
             {STATUS_FILTERS.map((filter) => (
@@ -124,7 +126,7 @@ export function BatchListClient() {
                     : "border-border bg-white text-muted-foreground hover:border-gold hover:text-charcoal"
                 )}
               >
-                {filter.label}
+                {t(filter.label)}
               </button>
             ))}
           </div>
@@ -132,7 +134,7 @@ export function BatchListClient() {
 
         <div className="flex w-full flex-col gap-2 md:w-72">
           <Label htmlFor="batch-search" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Search
+            {t("Search")}
           </Label>
           <div className="relative">
             <Search
@@ -141,7 +143,7 @@ export function BatchListClient() {
             />
             <Input
               id="batch-search"
-              placeholder="Batch number or supplier"
+              placeholder={t("Batch number or supplier")}
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               className="h-10 rounded-lg border-input bg-white pl-9 text-base focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
@@ -152,7 +154,7 @@ export function BatchListClient() {
 
       {/* Row count */}
       <p className="text-sm text-muted-foreground">
-        {isLoading ? "Loading…" : `${data?.length ?? 0} batches`}
+        {isLoading ? t("Loading…") : `${data?.length ?? 0} ${t("batches")}`}
       </p>
 
       {/* Error state */}
@@ -175,7 +177,7 @@ export function BatchListClient() {
       {/* Empty state */}
       {!isLoading && !error && (data?.length ?? 0) === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-white/60 px-6 py-12 text-center text-sm text-muted-foreground">
-          No batches recorded yet
+          {t("No batches recorded yet")}
         </div>
       )}
 
@@ -186,28 +188,28 @@ export function BatchListClient() {
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="h-11 pl-6 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Batch number
+                  {t("Batch number")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Fabric type
+                  {t("Fabric type")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Supplier
+                  {t("Supplier")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Quantity
+                  {t("Quantity")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Date received
+                  {t("Date received")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Recorded by
+                  {t("Recorded by")}
                 </TableHead>
                 <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Status
+                  {t("Status")}
                 </TableHead>
                 <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t("Actions")}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -242,7 +244,7 @@ export function BatchListClient() {
                       <StatusBadge status={batch.status} />
                       {batch.status === "IN_PRODUCTION" && batch.currentPhase && (
                         <span className="rounded-md bg-gold/15 px-1.5 py-0.5 text-[11px] font-medium text-charcoal">
-                          In: {batch.currentPhase}
+                          {t("In:")} {batch.currentPhase}
                         </span>
                       )}
                     </div>
@@ -251,8 +253,8 @@ export function BatchListClient() {
                     <button
                       type="button"
                       onClick={() => setSelectedBatch(batch)}
-                      aria-label={`View details of batch ${batch.batchNumber}`}
-                      title="View details"
+                      aria-label={`${t("View details")} · ${batch.batchNumber}`}
+                      title={t("View details")}
                       className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground transition-colors hover:border-gold hover:text-charcoal focus-visible:border-gold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold/20"
                     >
                       <Eye className="size-4" aria-hidden />

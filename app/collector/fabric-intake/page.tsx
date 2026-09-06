@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { Sidebar } from "@/components/sidebar/sidebar";
+import { T } from "@/components/shared/t";
 import { FabricIntakeForm } from "./fabric-intake-form";
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export default function FabricIntakePage() {
         <div className="w-full">
           <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-2xl font-semibold tracking-tight text-charcoal md:text-3xl">
-              Record fabric in.
+              <T>Record fabric in.</T>
             </h1>
           </header>
 

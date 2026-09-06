@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { Sidebar } from "@/components/sidebar/sidebar";
+import { T } from "@/components/shared/t";
 import { FinishedGoodsClient } from "./finished-goods-client";
 
 export const metadata: Metadata = {
@@ -17,10 +18,10 @@ export default function FinishedGoodsPage() {
         <div className="w-full">
           <header className="mb-8 flex flex-col gap-2">
             <h1 className="text-3xl font-semibold tracking-tight text-charcoal md:text-4xl">
-              Finished goods intake
+              <T>Finished goods intake</T>
             </h1>
             <p className="text-sm text-muted-foreground">
-              Turn a completed batch into a barcoded product and add it to stock.
+              <T>Turn a completed batch into a barcoded product and add it to stock.</T>
             </p>
           </header>
 

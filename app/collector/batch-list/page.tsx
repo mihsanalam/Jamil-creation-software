@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus } from "lucide-react";
 
 import { Sidebar } from "@/components/sidebar/sidebar";
+import { T } from "@/components/shared/t";
 import { BatchListClient } from "./batch-list-client";
 
 export const metadata: Metadata = {
@@ -18,14 +19,14 @@ export default function BatchListPage() {
         <div className="w-full">
           <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-3xl font-semibold tracking-tight text-charcoal md:text-4xl">
-              Batch list
+              <T>Batch list</T>
             </h1>
             <a
               href="/collector/fabric-intake"
               className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gold px-6 text-sm font-semibold text-charcoal shadow-sm transition-all hover:bg-gold/90 active:scale-[0.99]"
             >
               <Plus className="size-4" aria-hidden />
-              Record fabric
+              <T>Record fabric</T>
             </a>
           </header>
 

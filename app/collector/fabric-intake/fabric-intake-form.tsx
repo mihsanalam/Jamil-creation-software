@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type FabricUnit = "meters" | "kg";
@@ -38,6 +39,7 @@ function clearPreview(url: string | null) {
 }
 
 export function FabricIntakeForm() {
+  const { t } = useLanguage();
   const [fabricType, setFabricType] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState<FabricUnit>("meters");
@@ -64,7 +66,7 @@ export function FabricIntakeForm() {
       return;
     }
     if (file.size > PHOTO_MAX_BYTES) {
-      toast.error("Image is too large — the limit is 5 MB.");
+      toast.error(t("Image is too large — the limit is 5 MB."));
       event.target.value = "";
       return;
     }
@@ -99,7 +101,7 @@ export function FabricIntakeForm() {
           const uploadData = await uploadResponse.json().catch(() => null);
           toast.error(
             uploadData?.message ??
-              "Could not upload the fabric photo. Please try again."
+              t("Could not upload the fabric photo. Please try again.")
           );
           return;
         }
@@ -124,7 +126,7 @@ export function FabricIntakeForm() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        toast.error(data?.message ?? "Something went wrong while saving. Please try again.");
+        toast.error(data?.message ?? t("Something went wrong while saving. Please try again."));
         return;
       }
 
@@ -141,11 +143,11 @@ export function FabricIntakeForm() {
       setProcessNotes("");
       clearPhoto();
 
-      toast.success(`Batch ${data.batchNumber} saved`, {
-        description: `${quantity} ${unit} of ${fabricType} from ${supplierName}.`,
+      toast.success(`${t("Batch")} ${data.batchNumber} ${t("saved")}`, {
+        description: `${t("Quantity")}: ${quantity} ${t(unit)} · ${t("Fabric type")}: ${fabricType} · ${t("Supplier name")}: ${supplierName}`,
       });
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsSubmitting(false);
     }
@@ -157,7 +159,7 @@ export function FabricIntakeForm() {
       <div className="flex items-center justify-between gap-4 border-b border-border bg-cream px-6 py-3 sm:px-8">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Batch number
+            {t("Batch number")}
           </p>
           {lastBatchNumber ? (
             <p className="mt-0.5 font-mono text-base font-semibold text-charcoal">
@@ -165,7 +167,7 @@ export function FabricIntakeForm() {
             </p>
           ) : (
             <p className="mt-0.5 font-mono text-sm italic text-muted-foreground">
-              Will be generated on save
+              {t("Will be generated on save")}
             </p>
           )}
         </div>
@@ -177,7 +179,7 @@ export function FabricIntakeForm() {
               : "bg-gold/15 text-charcoal/80"
           )}
         >
-          {lastBatchNumber ? `Saved · ${lastBatchNumber}` : "Auto-generated"}
+          {lastBatchNumber ? `${t("Saved")} · ${lastBatchNumber}` : t("Auto-generated")}
         </span>
       </div>
 
@@ -186,11 +188,11 @@ export function FabricIntakeForm() {
           {/* Fabric type */}
           <div className="flex flex-col gap-2 md:col-span-2">
             <Label htmlFor="fabric-type" className="text-sm font-semibold text-charcoal">
-              Fabric type
+              {t("Fabric type")}
             </Label>
             <Input
               id="fabric-type"
-              placeholder="Cotton, Georgette, Silk..."
+              placeholder={t("Cotton, Georgette, Silk...")}
               required
               value={fabricType}
               onChange={(event) => setFabricType(event.target.value)}
@@ -201,7 +203,7 @@ export function FabricIntakeForm() {
           {/* Quantity + unit */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="quantity" className="text-sm font-semibold text-charcoal">
-              Quantity
+              {t("Quantity")}
             </Label>
             <div className="flex">
               <Input
@@ -220,15 +222,15 @@ export function FabricIntakeForm() {
                 onValueChange={(value) => setUnit(value as FabricUnit)}
               >
                 <SelectTrigger
-                  aria-label="Unit"
+                  aria-label={t("Unit")}
                   className="w-28 rounded-l-none bg-muted hover:bg-muted/70"
                   style={{ height: "2.5rem" }}
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent align="end">
-                  <SelectItem value="meters">meters</SelectItem>
-                  <SelectItem value="kg">kg</SelectItem>
+                  <SelectItem value="meters">{t("meters")}</SelectItem>
+                  <SelectItem value="kg">{t("kg")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -237,7 +239,7 @@ export function FabricIntakeForm() {
           {/* Date received */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="date-received" className="text-sm font-semibold text-charcoal">
-              Date received
+              {t("Date received")}
             </Label>
             <Input
               id="date-received"
@@ -252,11 +254,11 @@ export function FabricIntakeForm() {
           {/* Supplier name */}
           <div className="flex flex-col gap-2 md:col-span-2">
             <Label htmlFor="supplier-name" className="text-sm font-semibold text-charcoal">
-              Supplier name
+              {t("Supplier name")}
             </Label>
             <Input
               id="supplier-name"
-              placeholder="Enter supplier name"
+              placeholder={t("Enter supplier name")}
               required
               value={supplierName}
               onChange={(event) => setSupplierName(event.target.value)}
@@ -267,7 +269,7 @@ export function FabricIntakeForm() {
           {/* Fabric photo (optional) */}
           <div className="flex flex-col gap-2 md:col-span-2">
             <Label htmlFor="fabric-photo" className="text-sm font-semibold text-charcoal">
-              Fabric photo (optional)
+              {t("Fabric photo (optional)")}
             </Label>
             <div className="flex items-center gap-3">
               {photoPreview ? (
@@ -296,7 +298,7 @@ export function FabricIntakeForm() {
                   onClick={clearPhoto}
                   className="h-10 shrink-0 rounded-lg"
                 >
-                  Remove
+                  {t("Remove")}
                 </Button>
               ) : null}
             </div>
@@ -307,12 +309,12 @@ export function FabricIntakeForm() {
         <div className="space-y-4 border-t border-border pt-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="description" className="text-sm font-semibold text-charcoal">
-              Description
+              {t("Description")}
             </Label>
             <Textarea
               id="description"
               rows={2}
-              placeholder="Describe this fabric batch — color, texture, any notable details"
+              placeholder={t("Describe this fabric batch — color, texture, any notable details")}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               className={TEXTAREA_FIELD}
@@ -321,12 +323,12 @@ export function FabricIntakeForm() {
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="process-notes" className="text-sm font-semibold text-charcoal">
-              Process notes
+              {t("Process notes")}
             </Label>
             <Textarea
               id="process-notes"
               rows={2}
-              placeholder="Notes on how this fabric should be processed"
+              placeholder={t("Notes on how this fabric should be processed")}
               value={processNotes}
               onChange={(event) => setProcessNotes(event.target.value)}
               className={TEXTAREA_FIELD}
@@ -338,7 +340,7 @@ export function FabricIntakeForm() {
       {/* Actions footer */}
       <div className="flex flex-col gap-3 border-t border-border bg-cream/60 px-6 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <p className="text-xs text-muted-foreground">
-          Saved batches are registered with status{" "}
+          {t("Saved batches are registered with status")}{" "}
           <span className="font-semibold text-charcoal">PENDING</span>.
         </p>
         <Button
@@ -346,7 +348,7 @@ export function FabricIntakeForm() {
           disabled={isSubmitting}
           className="h-10 w-full rounded-lg bg-gold px-8 text-sm font-semibold tracking-wide text-charcoal shadow-sm transition-all hover:bg-gold/90 active:scale-[0.99] disabled:opacity-60 sm:w-auto"
         >
-          {isSubmitting ? "Saving…" : "Save and continue"}
+          {isSubmitting ? t("Saving…") : t("Save and continue")}
         </Button>
       </div>
     </form>

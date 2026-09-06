@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/shared/status-badge";
 import Image from "next/image";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 import type { FabricBatch } from "./batch-list-client";
@@ -79,6 +80,7 @@ export function BatchDetailDialog({
   onClose,
   onUpdated,
 }: BatchDetailDialogProps) {
+  const { t } = useLanguage();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -96,7 +98,7 @@ export function BatchDetailDialog({
     if (!file || !batch) return;
 
     if (file.size > PHOTO_MAX_BYTES) {
-      toast.error("Image is too large — the limit is 5 MB.");
+      toast.error(t("Image is too large — the limit is 5 MB."));
       return;
     }
 
@@ -112,7 +114,7 @@ export function BatchDetailDialog({
       if (!uploadResponse.ok) {
         const data = await uploadResponse.json().catch(() => null);
         toast.error(
-          data?.message ?? "Could not upload the photo. Please try again."
+          data?.message ?? t("Could not upload the photo. Please try again.")
         );
         return;
       }
@@ -126,15 +128,15 @@ export function BatchDetailDialog({
       if (!patchResponse.ok) {
         const data = await patchResponse.json().catch(() => null);
         toast.error(
-          data?.message ?? "Could not save the photo. Please try again."
+          data?.message ?? t("Could not save the photo. Please try again.")
         );
         return;
       }
 
       onUpdated?.({ id: batch.id, imageUrl: path });
-      toast.success(`Photo saved for ${batch.batchNumber}`);
+      toast.success(`${batch.batchNumber} — ${t("Photo saved")}`);
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsUploading(false);
     }
@@ -152,14 +154,14 @@ export function BatchDetailDialog({
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         toast.error(
-          data?.message ?? "Could not remove the photo. Please try again."
+          data?.message ?? t("Could not remove the photo. Please try again.")
         );
         return;
       }
       onUpdated?.({ id: batch.id, imageUrl: null });
-      toast.success(`Photo removed from ${batch.batchNumber}`);
+      toast.success(`${batch.batchNumber} — ${t("Photo removed")}`);
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsUploading(false);
     }
@@ -176,14 +178,14 @@ export function BatchDetailDialog({
                   {batch.batchNumber}
                 </DialogTitle>
                 <DialogDescription className="text-sm text-muted-foreground">
-                  Fabric batch details
+                  {t("Fabric batch details")}
                 </DialogDescription>
               </DialogHeader>
               <div className="mt-2">
                 <StatusBadge status={batch.status} />
                 {batch.status === "IN_PRODUCTION" && batch.currentPhase && (
                   <span className="ml-2 inline-flex rounded-md bg-gold/15 px-2 py-0.5 text-xs font-medium text-charcoal">
-                    Current phase: {batch.currentPhase}
+                    {t("Current phase:")} {batch.currentPhase}
                   </span>
                 )}
               </div>
@@ -208,7 +210,7 @@ export function BatchDetailDialog({
                 )}
                 <div className="flex flex-1 flex-col gap-2">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Fabric photo
+                    {t("Fabric photo")}
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
                     <label
@@ -217,7 +219,7 @@ export function BatchDetailDialog({
                         isUploading && "pointer-events-none opacity-60"
                       )}
                     >
-                      {batch.imageUrl ? "Change photo" : "Add photo"}
+                      {batch.imageUrl ? t("Change photo") : t("Add photo")}
                       <input
                         ref={photoInputRef}
                         type="file"
@@ -235,12 +237,12 @@ export function BatchDetailDialog({
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-white px-3 text-xs font-semibold text-muted-foreground transition-colors hover:border-rust hover:text-rust disabled:opacity-60"
                       >
                         <Trash2 className="size-3.5" aria-hidden />
-                        Remove
+                        {t("Remove")}
                       </button>
                     )}
                     {isUploading && (
                       <span className="text-xs text-muted-foreground">
-                        Saving…
+                        {t("Saving…")}
                       </span>
                     )}
                   </div>
@@ -248,29 +250,29 @@ export function BatchDetailDialog({
               </div>
 
               <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                <DetailRow label="Fabric type" value={batch.fabricType} />
+                <DetailRow label={t("Fabric type")} value={batch.fabricType} />
                 <DetailRow
-                  label="Quantity"
+                  label={t("Quantity")}
                   value={`${batch.quantity} ${batch.unit}`}
                   mono
                 />
-                <DetailRow label="Supplier" value={batch.supplier} />
-                <DetailRow label="Date received" value={formatDateOnly(batch.dateReceived)} />
+                <DetailRow label={t("Supplier")} value={batch.supplier} />
+                <DetailRow label={t("Date received")} value={formatDateOnly(batch.dateReceived)} />
                 <DetailRow
-                  label="Recorded by"
+                  label={t("Recorded by")}
                   value={batch.recordedByName}
                 />
-                <DetailRow label="Recorded at" value={formatDate(batch.createdAt)} />
+                <DetailRow label={t("Recorded at")} value={formatDate(batch.createdAt)} />
               </div>
 
               <div className="space-y-4 border-t border-border pt-4">
                 <NotesBlock
-                  label="Description"
-                  text={batch.description ?? "No description provided."}
+                  label={t("Description")}
+                  text={batch.description ?? t("No description provided.")}
                 />
                 <NotesBlock
-                  label="Process notes"
-                  text={batch.processNotes ?? "No process notes provided."}
+                  label={t("Process notes")}
+                  text={batch.processNotes ?? t("No process notes provided.")}
                 />
               </div>
             </div>

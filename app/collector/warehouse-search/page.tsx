@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { Sidebar } from "@/components/sidebar/sidebar";
+import { T } from "@/components/shared/t";
 import { WarehouseSearchClient } from "./warehouse-search-client";
 
 export const metadata: Metadata = {
@@ -17,10 +18,10 @@ export default function WarehouseSearchPage() {
         <div className="w-full">
           <header className="mb-8 flex flex-col gap-2">
             <h1 className="text-3xl font-semibold tracking-tight text-charcoal md:text-4xl">
-              Warehouse search
+              <T>Warehouse search</T>
             </h1>
             <p className="text-sm text-muted-foreground">
-              Look up any finished product in stock by barcode, batch number, or product type.
+              <T>Look up any finished product in stock by barcode, batch number, or product type.</T>
             </p>
           </header>
 

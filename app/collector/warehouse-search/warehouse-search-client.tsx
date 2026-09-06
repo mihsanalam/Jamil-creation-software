@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useLanguage } from "@/lib/i18n";
 
 // A finished product row from GET /api/finished-products.
 export interface FinishedProduct {
@@ -50,6 +51,7 @@ function formatDate(value: string) {
 }
 
 export function WarehouseSearchClient() {
+  const { t } = useLanguage();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
 
@@ -79,17 +81,17 @@ export function WarehouseSearchClient() {
         />
         <Input
           id="warehouse-search"
-          placeholder="Search by barcode, batch number, or product type…"
+          placeholder={t("Search by barcode, batch number, or product type…")}
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          aria-label="Search finished products"
+          aria-label={t("Search finished products")}
           className="h-14 rounded-xl border-input bg-white pl-12 text-base shadow-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
         />
       </div>
 
       {/* Row count */}
       <p className="text-sm text-muted-foreground">
-        {isLoading ? "Loading…" : `${data?.length ?? 0} products`}
+        {isLoading ? t("Loading…") : `${data?.length ?? 0} ${t("products")}`}
       </p>
 
       {/* Error state */}
@@ -115,8 +117,8 @@ export function WarehouseSearchClient() {
           <PackageSearch className="size-8 text-muted-foreground/60" aria-hidden />
           <p className="text-sm text-muted-foreground">
             {search
-              ? `No products found for “${search}”.`
-              : "No products found. Finished goods you add to stock will appear here."}
+              ? `${t("No products found for")} “${search}”.`
+              : t("No products found. Finished goods you add to stock will appear here.")}
           </p>
         </div>
       )}
@@ -128,19 +130,19 @@ export function WarehouseSearchClient() {
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="h-11 pl-6 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Product / batch number
+                  {t("Product / batch number")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Quantity
+                  {t("Quantity")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Storage location
+                  {t("Storage location")}
                 </TableHead>
                 <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Date added
+                  {t("Date added")}
                 </TableHead>
                 <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Status
+                  {t("Status")}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -159,7 +161,7 @@ export function WarehouseSearchClient() {
                     </div>
                   </TableCell>
                   <TableCell className="py-3.5 font-mono text-charcoal">
-                    {product.quantityRemaining} pcs
+                    {product.quantityRemaining} {t("pcs")}
                   </TableCell>
                   <TableCell className="py-3.5 text-charcoal">
                     {product.storageLocation}

@@ -23,6 +23,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
@@ -106,6 +107,7 @@ function SummaryRow({
 }
 
 export function FinishedGoodsClient() {
+  const { t } = useLanguage();
   const [readyOpen, setReadyOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ReadyOrder | null>(null);
   const [storageLocation, setStorageLocation] = useState("");
@@ -156,7 +158,7 @@ export function FinishedGoodsClient() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not add the product to stock.");
+        toast.error(payload?.message ?? t("Could not add the product to stock."));
         return null;
       }
 
@@ -167,7 +169,7 @@ export function FinishedGoodsClient() {
       setQrDataUrl(qr);
       return payload as CreatedProduct;
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
       return null;
     } finally {
       setIsCreating(false);
@@ -188,8 +190,8 @@ export function FinishedGoodsClient() {
     const product = createdProduct ?? (await createProduct());
     if (!product) return;
 
-    toast.success(`Added to stock · Barcode ${product.barcode}`, {
-      description: `${selectedOrder.productType} · ${selectedOrder.batchNumber} stored at ${product.storageLocation}.`,
+    toast.success(`${t("Added to stock · Barcode")} ${product.barcode}`, {
+      description: `${selectedOrder.productType} · ${selectedOrder.batchNumber} — ${t("Storage location")}: ${product.storageLocation}`,
     });
 
     // Reset the form; the consumed work order disappears from the picker.
@@ -214,10 +216,10 @@ export function FinishedGoodsClient() {
       <section className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-border">
         <div className="mb-4">
           <Label className="text-sm font-semibold text-charcoal">
-            Find batch marked ready
+            {t("Find batch marked ready")}
           </Label>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Only completed work orders that haven&apos;t been stocked yet appear here.
+            {t("Only completed work orders that haven't been stocked yet appear here.")}
           </p>
         </div>
 
@@ -225,11 +227,11 @@ export function FinishedGoodsClient() {
           <Skeleton className="h-11 w-full rounded-lg" />
         ) : error ? (
           <p className="rounded-lg border border-dashed border-border bg-white/60 px-4 py-4 text-sm text-red-600">
-            Could not load ready batches. Please try again.
+            {t("Could not load ready batches. Please try again.")}
           </p>
         ) : (readyOrders?.length ?? 0) === 0 ? (
           <p className="rounded-lg border border-dashed border-border bg-white/60 px-4 py-6 text-center text-sm text-muted-foreground">
-            No completed batches waiting to become stock yet.
+            {t("No completed batches waiting to become stock yet.")}
           </p>
         ) : (
           <Popover open={readyOpen} onOpenChange={setReadyOpen}>
@@ -248,7 +250,7 @@ export function FinishedGoodsClient() {
                   <span className="font-mono">{selectedOrder.quantity} pcs</span>
                 </span>
               ) : (
-                <span>Search batches…</span>
+                <span>{t("Search batches…")}</span>
               )}
               <ChevronDown
                 className={cn(
@@ -261,9 +263,9 @@ export function FinishedGoodsClient() {
 
             <PopoverContent className="w-150 p-0" align="start" sideOffset={6}>
               <Command>
-                <CommandInput placeholder="Search batch number or product type…" />
+                <CommandInput placeholder={t("Search batch number or product type…")} />
                 <CommandList>
-                  <CommandEmpty>No ready batches match.</CommandEmpty>
+                  <CommandEmpty>{t("No ready batches match.")}</CommandEmpty>
                   <CommandGroup>
                     {(readyOrders ?? []).map((order) => (
                       <CommandItem
@@ -297,23 +299,23 @@ export function FinishedGoodsClient() {
         <section className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-border">
           <div className="mb-4">
             <Label className="text-sm font-semibold text-charcoal">
-              Batch summary
+              {t("Batch summary")}
             </Label>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              All phases are complete — this batch is ready to become stock.
+              {t("All phases are complete — this batch is ready to become stock.")}
             </p>
           </div>
 
           <div className="grid grid-cols-3 gap-x-6 gap-y-4">
             <SummaryRow
-              label="Batch number"
+              label={t("Batch number")}
               value={selectedOrder.batchNumber}
               mono
             />
-            <SummaryRow label="Product type" value={selectedOrder.productType} />
+            <SummaryRow label={t("Product type")} value={selectedOrder.productType} />
             <SummaryRow
-              label="Quantity"
-              value={`${selectedOrder.quantity} pcs`}
+              label={t("Quantity")}
+              value={`${selectedOrder.quantity} ${t("pcs")}`}
               mono
             />
           </div>
@@ -332,7 +334,7 @@ export function FinishedGoodsClient() {
                   {phase.name}
                 </span>
                 <span className="ml-auto text-xs text-muted-foreground">
-                  {phase.workerName ?? "Unassigned"}
+                  {phase.workerName ?? t("Unassigned")}
                 </span>
               </li>
             ))}
@@ -344,9 +346,9 @@ export function FinishedGoodsClient() {
         {/* Left — barcode generation */}
         <section className="flex flex-col rounded-xl bg-white p-6 shadow-sm ring-1 ring-border">
           <div className="mb-4">
-            <Label className="text-sm font-semibold text-charcoal">Barcode</Label>
+            <Label className="text-sm font-semibold text-charcoal">{t("Barcode")}</Label>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Generate a unique barcode for this finished product.
+              {t("Generate a unique barcode for this finished product.")}
             </p>
           </div>
 
@@ -359,23 +361,23 @@ export function FinishedGoodsClient() {
                 title={
                   confirmEnabled
                     ? undefined
-                    : "Select a batch and enter a storage location first."
+                    : t("Select a batch and enter a storage location first.")
                 }
                 className="h-11 rounded-lg bg-charcoal px-6 text-sm font-semibold text-cream shadow-sm transition-all hover:bg-charcoal/90 active:scale-[0.99] disabled:opacity-50"
               >
                 {isCreating ? (
                   <>
                     <Loader2 className="size-4 animate-spin" aria-hidden />
-                    Generating…
+                    {t("Generating…")}
                   </>
                 ) : (
-                  "Generate"
+                  t("Generate")
                 )}
               </Button>
               <p className="text-xs text-muted-foreground">
                 {confirmEnabled
-                  ? "Creates the product and shows its scannable barcode."
-                  : "Pick a batch above and fill in the storage location to enable this."}
+                  ? t("Creates the product and shows its scannable barcode.")
+                  : t("Pick a batch above and fill in the storage location to enable this.")}
               </p>
             </div>
           ) : (
@@ -392,7 +394,7 @@ export function FinishedGoodsClient() {
                   {createdProduct.barcode}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {createdProduct.quantity} pcs · {createdProduct.storageLocation}
+                  {createdProduct.quantity} {t("pcs")} · {createdProduct.storageLocation}
                 </p>
               </div>
               <Button
@@ -402,7 +404,7 @@ export function FinishedGoodsClient() {
                 className="h-10 rounded-lg border border-border bg-white px-4 text-sm font-semibold text-charcoal transition-colors hover:border-gold hover:bg-gold/5"
               >
                 <Printer className="size-4" aria-hidden />
-                Print label
+                {t("Print label")}
               </Button>
             </div>
           )}
@@ -412,10 +414,10 @@ export function FinishedGoodsClient() {
         <section className="flex flex-col rounded-xl bg-white p-6 shadow-sm ring-1 ring-border">
           <div className="mb-4">
             <Label htmlFor="storage-location" className="text-sm font-semibold text-charcoal">
-              Storage location
+              {t("Storage location")}
             </Label>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Shelf or rack code where this product will be stored.
+              {t("Shelf or rack code where this product will be stored.")}
             </p>
           </div>
 
@@ -423,13 +425,13 @@ export function FinishedGoodsClient() {
             id="storage-location"
             value={storageLocation}
             onChange={(event) => handleStorageChange(event.target.value)}
-            placeholder="e.g. Shelf A-3"
+            placeholder={t("e.g. Shelf A-3")}
             disabled={selectedOrder === null}
             className={FIELD}
           />
           {selectedOrder === null && (
             <p className="mt-2 text-xs text-muted-foreground">
-              Select a ready batch first.
+              {t("Select a ready batch first.")}
             </p>
           )}
         </section>
@@ -444,17 +446,17 @@ export function FinishedGoodsClient() {
           title={
             confirmEnabled
               ? undefined
-              : "Select a batch and enter a storage location first."
+              : t("Select a batch and enter a storage location first.")
           }
           className="h-11 rounded-lg bg-gold px-6 text-sm font-semibold text-charcoal shadow-sm transition-all hover:bg-gold/90 active:scale-[0.99] disabled:opacity-50"
         >
           {isCreating ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden />
-              Adding…
+              {t("Adding…")}
             </>
           ) : (
-            "Confirm and add to stock"
+            t("Confirm and add to stock")
           )}
         </Button>
       </div>
