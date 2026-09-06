@@ -1,4 +1,7 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/lib/i18n";
 
 // One color mapping for every status shown across the app (Batch List,
 // Phase Board, Sales report...) so a status never looks different on two
@@ -26,9 +29,19 @@ const statusStyles: Record<string, string> = {
 };
 
 export function StatusBadge({ status }: { status: string }) {
+  const { t } = useLanguage();
+
+  // English keeps the existing "in production" styling; Bangla comes from
+  // the i18n dictionary (t() falls back to the raw status if untranslated).
+  const translated = t(status);
+  const label =
+    translated !== status
+      ? translated
+      : status.replace(/_/g, " ").toLowerCase();
+
   return (
     <Badge variant="outline" className={statusStyles[status] ?? ""}>
-      <span className="capitalize">{status.replace(/_/g, " ").toLowerCase()}</span>
+      <span className={translated !== status ? "" : "capitalize"}>{label}</span>
     </Badge>
   );
 }

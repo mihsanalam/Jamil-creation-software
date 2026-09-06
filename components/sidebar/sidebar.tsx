@@ -16,7 +16,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { LanguageToggle } from "@/components/shared/language-toggle";
 import { SignOutButton } from "@/components/shared/sign-out-button";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types/next-auth";
 
@@ -78,6 +80,7 @@ interface SidebarProps {
  */
 export function Sidebar({ role, activeRoute }: SidebarProps) {
   const { subtitle, items } = NAV_BY_ROLE[role];
+  const { t } = useLanguage();
 
   return (
     <aside className="sticky top-0 hidden h-screen w-70 shrink-0 flex-col border-r border-charcoal/20 bg-charcoal py-6 md:flex">
@@ -86,7 +89,7 @@ export function Sidebar({ role, activeRoute }: SidebarProps) {
           Jamil Creations
         </h1>
         <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-cream/60">
-          {subtitle}
+          {t(subtitle)}
         </p>
       </div>
 
@@ -106,13 +109,14 @@ export function Sidebar({ role, activeRoute }: SidebarProps) {
               )}
             >
               <Icon className="size-4 shrink-0" aria-hidden />
-              {label}
+              {t(label)}
             </Link>
           );
         })}
       </nav>
 
       <div className="mt-auto border-t border-charcoal/40 px-3 pt-4">
+        <LanguageToggle />
         <SignOutButton />
       </div>
     </aside>
