@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // A client row from GET /api/clients (includes the computed purchase stats).
@@ -60,6 +61,7 @@ const EMPTY_FORM = { name: "", phone: "", address: "", type: "RETAIL" };
 
 // Gold pill for wholesale, muted for retail — mirrors StatusBadge styling.
 function TypeBadge({ type }: { type: string }) {
+  const { t } = useLanguage();
   return (
     <Badge
       variant="outline"
@@ -69,7 +71,7 @@ function TypeBadge({ type }: { type: string }) {
           : "border-border bg-muted text-muted-foreground"
       )}
     >
-      {type === "WHOLESALE" ? "Wholesale" : "Retail"}
+      {t(type === "WHOLESALE" ? "Wholesale" : "Retail")}
     </Badge>
   );
 }
@@ -82,6 +84,7 @@ function formatMoney(value: number) {
 }
 
 export function ClientsClient() {
+  const { t } = useLanguage();
   const [type, setType] = useState<string>("all");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -109,7 +112,7 @@ export function ClientsClient() {
   async function handleAddClient(event: FormEvent) {
     event.preventDefault();
     if (form.name.trim() === "" || form.phone.trim() === "") {
-      toast.error("Name and phone are required.");
+      toast.error(t("Name and phone are required."));
       return;
     }
 
@@ -127,16 +130,16 @@ export function ClientsClient() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not create the client.");
+        toast.error(payload?.message ?? t("Could not create the client."));
         return;
       }
 
-      toast.success(`Client "${payload.name}" added.`);
+      toast.success(`${t("Client")} "${payload.name}" ${t("added.")}`);
       setAddOpen(false);
       setForm(EMPTY_FORM);
       mutate();
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsSubmitting(false);
     }
@@ -148,10 +151,10 @@ export function ClientsClient() {
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold tracking-tight text-charcoal md:text-4xl">
-            Clients
+            {t("Clients")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Wholesale and retail customers, their purchases and outstanding dues.
+            {t("Wholesale and retail customers, their purchases and outstanding dues.")}
           </p>
         </div>
         <Button
@@ -160,7 +163,7 @@ export function ClientsClient() {
           className="h-11 shrink-0 rounded-lg bg-gold px-6 text-sm font-semibold text-charcoal shadow-sm transition-all hover:bg-gold/90 active:scale-[0.99]"
         >
           <Plus className="size-4" aria-hidden />
-          Add client
+          {t("Add client")}
         </Button>
       </header>
 
@@ -168,7 +171,7 @@ export function ClientsClient() {
       <div className="flex flex-col gap-4 rounded-xl border border-border bg-white p-4 shadow-sm md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col gap-2">
           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Type
+            {t("Type")}
           </Label>
           <div className="flex flex-wrap gap-2">
             {TYPE_FILTERS.map((filter) => (
@@ -184,7 +187,7 @@ export function ClientsClient() {
                     : "border-border bg-white text-muted-foreground hover:border-gold hover:text-charcoal"
                 )}
               >
-                {filter.label}
+                {t(filter.label)}
               </button>
             ))}
           </div>
@@ -195,7 +198,7 @@ export function ClientsClient() {
             htmlFor="client-search"
             className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
           >
-            Search
+            {t("Search")}
           </Label>
           <div className="relative">
             <Search
@@ -204,7 +207,7 @@ export function ClientsClient() {
             />
             <Input
               id="client-search"
-              placeholder="Client name"
+              placeholder={t("Client name")}
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               className="h-10 rounded-lg border-input bg-white pl-9 text-base focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
@@ -215,7 +218,7 @@ export function ClientsClient() {
 
       {/* Row count */}
       <p className="text-sm text-muted-foreground">
-        {isLoading ? "Loading…" : `${data?.length ?? 0} clients`}
+        {isLoading ? t("Loading…") : `${data?.length ?? 0} ${t("clients")}`}
       </p>
 
       {/* Error state */}
@@ -239,8 +242,8 @@ export function ClientsClient() {
       {!isLoading && !error && (data?.length ?? 0) === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-white/60 px-6 py-12 text-center text-sm text-muted-foreground">
           {search || type !== "all"
-            ? "No clients match the current filters."
-            : "No clients yet. Add your first client to start selling."}
+            ? t("No clients match the current filters.")
+            : t("No clients yet. Add your first client to start selling.")}
         </div>
       )}
 
@@ -251,22 +254,22 @@ export function ClientsClient() {
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="h-11 pl-6 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Client name
+                  {t("Client name")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Type
+                  {t("Type")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Phone
+                  {t("Phone")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Total purchased
+                  {t("Total purchased")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  Outstanding due
+                  {t("Outstanding due")}
                 </TableHead>
                 <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t("Actions")}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -301,16 +304,16 @@ export function ClientsClient() {
                     <div className="flex items-center justify-end gap-2">
                       <Link
                         href={`/operator/pos/due-collection?clientId=${client.id}`}
-                        aria-label={`View dues of ${client.name}`}
-                        title="View dues"
+                        aria-label={`${t("View dues")} · ${client.name}`}
+                        title={t("View dues")}
                         className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground transition-colors hover:border-gold hover:text-charcoal focus-visible:border-gold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold/20"
                       >
                         <Eye className="size-4" aria-hidden />
                       </Link>
                       <Link
                         href={`/operator/pos/new-sale?client=${client.id}`}
-                        aria-label={`Start a new sale for ${client.name}`}
-                        title="New sale"
+                        aria-label={`${t("New sale")} · ${client.name}`}
+                        title={t("New sale")}
                         className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground transition-colors hover:border-gold hover:text-charcoal focus-visible:border-gold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold/20"
                       >
                         <ShoppingCart className="size-4" aria-hidden />
@@ -331,10 +334,10 @@ export function ClientsClient() {
           <div className="border-b border-border bg-cream px-6 py-4">
             <DialogHeader className="gap-1 text-left">
               <DialogTitle className="text-lg font-semibold text-charcoal">
-                Add client
+                {t("Add client")}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
-                Create a new wholesale or retail customer.
+                {t("Create a new wholesale or retail customer.")}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -342,7 +345,7 @@ export function ClientsClient() {
           <form onSubmit={handleAddClient} className="space-y-4 px-6 py-5">
             <div className="flex flex-col gap-2">
               <Label htmlFor="client-name" className="text-sm font-semibold text-charcoal">
-                Name
+                {t("Name")}
               </Label>
               <Input
                 id="client-name"
@@ -350,7 +353,7 @@ export function ClientsClient() {
                 onChange={(event) =>
                   setForm({ ...form, name: event.target.value })
                 }
-                placeholder="e.g. Rahman Textiles"
+                placeholder={t("e.g. Rahman Textiles")}
                 required
                 className="h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
               />
@@ -358,7 +361,7 @@ export function ClientsClient() {
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="client-phone" className="text-sm font-semibold text-charcoal">
-                Phone
+                {t("Phone")}
               </Label>
               <Input
                 id="client-phone"
@@ -366,7 +369,7 @@ export function ClientsClient() {
                 onChange={(event) =>
                   setForm({ ...form, phone: event.target.value })
                 }
-                placeholder="e.g. 01712345678"
+                placeholder={t("e.g. 01712345678")}
                 required
                 className="h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
               />
@@ -374,7 +377,7 @@ export function ClientsClient() {
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="client-address" className="text-sm font-semibold text-charcoal">
-                Address <span className="font-normal text-muted-foreground">(optional)</span>
+                {t("Address")} <span className="font-normal text-muted-foreground">{t("(optional)")}</span>
               </Label>
               <Input
                 id="client-address"
@@ -382,13 +385,13 @@ export function ClientsClient() {
                 onChange={(event) =>
                   setForm({ ...form, address: event.target.value })
                 }
-                placeholder="e.g. Keraniganj, Dhaka"
+                placeholder={t("e.g. Keraniganj, Dhaka")}
                 className="h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label className="text-sm font-semibold text-charcoal">Type</Label>
+              <Label className="text-sm font-semibold text-charcoal">{t("Type")}</Label>
               <div className="flex gap-2">
                 {TYPE_FILTERS.filter((f) => f.value !== "all").map((option) => (
                   <button
@@ -403,7 +406,7 @@ export function ClientsClient() {
                         : "border-border bg-white text-muted-foreground hover:border-gold hover:text-charcoal"
                     )}
                   >
-                    {option.label}
+                    {t(option.label)}
                   </button>
                 ))}
               </div>
@@ -417,14 +420,14 @@ export function ClientsClient() {
                 disabled={isSubmitting}
                 className="h-10 rounded-lg border border-border bg-white px-4 text-sm font-semibold text-charcoal transition-colors hover:border-gold hover:bg-gold/5"
               >
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting}
                 className="h-10 rounded-lg bg-gold px-6 text-sm font-semibold text-charcoal shadow-sm transition-all hover:bg-gold/90 active:scale-[0.99] disabled:opacity-50"
               >
-                Add client
+                {t("Add client")}
               </Button>
             </div>
           </form>

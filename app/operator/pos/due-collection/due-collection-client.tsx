@@ -29,6 +29,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // A client with an outstanding balance — from GET /api/sales/dues (used for
@@ -133,6 +134,7 @@ function TypeBadge({ type }: { type: string }) {
 }
 
 export function DueCollectionClient() {
+  const { t } = useLanguage();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientDueRow | null>(
     null
@@ -194,11 +196,11 @@ export function DueCollectionClient() {
   async function handleRecordPayment() {
     if (!selectedClient) return;
     if (!(amount > 0)) {
-      toast.error("Enter an amount greater than 0.");
+      toast.error(t("Enter an amount greater than 0."));
       return;
     }
     if (amount > totalDue) {
-      toast.error("Amount cannot exceed the outstanding balance.");
+      toast.error(t("Amount cannot exceed the outstanding balance."));
       return;
     }
 
@@ -217,7 +219,7 @@ export function DueCollectionClient() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not record the payment.");
+        toast.error(payload?.message ?? t("Could not record the payment."));
         return;
       }
 
@@ -230,10 +232,10 @@ export function DueCollectionClient() {
       setAmountInput(toInputAmount(newTotal));
 
       toast.success(
-        `Payment of ${formatMoney(amount)} recorded for ${selectedClient.name}.`
+        `${t("Payment of")} ${formatMoney(amount)} ${t("recorded for")} ${selectedClient.name}.`
       );
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsSubmitting(false);
     }
@@ -246,10 +248,10 @@ export function DueCollectionClient() {
       {/* Page header */}
       <div>
         <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          Point of sale
+          {t("Point of sale")}
         </p>
         <h1 className="mt-1 font-display text-3xl font-bold text-foreground">
-          Due collection
+          {t("Due collection")}
         </h1>
       </div>
 
@@ -272,7 +274,7 @@ export function DueCollectionClient() {
               </span>
             </span>
           ) : (
-            <span>Search client with outstanding due</span>
+            <span>{t("Search client with outstanding due")}</span>
           )}
           <ChevronDown
             className={cn(
@@ -284,7 +286,7 @@ export function DueCollectionClient() {
         </PopoverTrigger>
         <PopoverContent className="w-[min(36rem,90vw)] p-0" align="start">
           <Command>
-            <CommandInput placeholder="Search client with outstanding due…" />
+            <CommandInput placeholder={t("Search client with outstanding due…")} />
             <CommandList>
               {clientsLoading ? (
                 <div className="space-y-2 p-3">
@@ -295,7 +297,7 @@ export function DueCollectionClient() {
               ) : (
                 <>
                   <CommandEmpty>
-                    No client with outstanding due found.
+                    {t("No client with outstanding due found.")}
                   </CommandEmpty>
                   <CommandGroup>
                     {(clients ?? []).map((client) => (
@@ -315,7 +317,7 @@ export function DueCollectionClient() {
                         <span className="flex-1">{client.name}</span>
                         <span className="text-xs text-muted-foreground">
                           {client.phone} ·{" "}
-                          {client.type === "WHOLESALE" ? "Wholesale" : "Retail"}{" "}
+                          {t(client.type === "WHOLESALE" ? "Wholesale" : "Retail")}{" "}
                           ·{" "}
                           <span className="font-medium text-rust">
                             {formatMoney(client.totalDue)}
@@ -351,7 +353,7 @@ export function DueCollectionClient() {
                   "text-xs font-medium uppercase tracking-wide text-muted-foreground"
                 }
               >
-                Total outstanding due
+                {t("Total outstanding due")}
               </p>
 
               {duesLoading ? (
@@ -366,7 +368,7 @@ export function DueCollectionClient() {
               <div className="mt-5 divide-y divide-border border-t">
                 {duesError ? (
                   <p className="py-4 text-sm text-muted-foreground">
-                    Could not load this client&apos;s invoices. Please refresh.
+                    {t("Could not load this client's invoices. Please refresh.")}
                   </p>
                 ) : duesLoading ? (
                   <div className="space-y-2 py-4">
@@ -375,7 +377,7 @@ export function DueCollectionClient() {
                   </div>
                 ) : (dues?.invoices ?? []).length === 0 ? (
                   <p className="py-4 text-sm text-muted-foreground">
-                    No unpaid invoices.
+                    {t("No unpaid invoices.")}
                   </p>
                 ) : (
                   (dues?.invoices ?? []).map((invoice) => (
@@ -389,11 +391,11 @@ export function DueCollectionClient() {
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {formatDate(invoice.date)} ·{" "}
-                          <span>Original {formatMoney(invoice.total)}</span>
+                          <span>{t("Original")} {formatMoney(invoice.total)}</span>
                         </p>
                       </div>
                       <p className="text-right font-semibold text-rust">
-                        {formatMoney(invoice.amountDue)} due
+                        {formatMoney(invoice.amountDue)} {t("due")}
                       </p>
                     </div>
                   ))
@@ -408,7 +410,7 @@ export function DueCollectionClient() {
             {/* Record payment */}
             <Card>
               <CardHeader>
-                <CardTitle>Record payment</CardTitle>
+                <CardTitle>{t("Record payment")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-col gap-2">
@@ -416,7 +418,7 @@ export function DueCollectionClient() {
                     htmlFor="payment-amount"
                     className="text-sm font-semibold text-charcoal"
                   >
-                    Amount (৳)
+                    {t("Amount (৳)")}
                   </Label>
                   <Input
                     id="payment-amount"
@@ -428,7 +430,7 @@ export function DueCollectionClient() {
                     className="h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Due after this payment:{" "}
+                    {t("Due after this payment:")}{" "}
                     <span className="font-medium text-rust">
                       {formatMoney(Math.max(totalDue - amount, 0))}
                     </span>
@@ -437,7 +439,7 @@ export function DueCollectionClient() {
 
                 <div className="flex flex-col gap-2">
                   <Label className="text-sm font-semibold text-charcoal">
-                    Payment method
+                    {t("Payment method")}
                   </Label>
                   <div className="flex flex-wrap gap-2">
                     {PAYMENT_METHODS.map((option) => (
@@ -453,7 +455,7 @@ export function DueCollectionClient() {
                             : "border-border bg-white text-muted-foreground hover:border-gold hover:text-charcoal"
                         )}
                       >
-                        {option.label}
+                        {t(option.label)}
                       </button>
                     ))}
                   </div>
@@ -464,7 +466,7 @@ export function DueCollectionClient() {
                     htmlFor="payment-date"
                     className="text-sm font-semibold text-charcoal"
                   >
-                    Date
+                    {t("Date")}
                   </Label>
                   <Input
                     id="payment-date"
@@ -484,7 +486,7 @@ export function DueCollectionClient() {
                   {isSubmitting ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
-                    "Record payment"
+                    t("Record payment")
                   )}
                 </Button>
               </CardContent>
@@ -494,7 +496,7 @@ export function DueCollectionClient() {
             {/* Payment history */}
             <Card>
               <CardHeader>
-                <CardTitle>Payment history</CardTitle>
+                <CardTitle>{t("Payment history")}</CardTitle>
               </CardHeader>
               <CardContent>
                 {paymentsLoading ? (
@@ -504,11 +506,11 @@ export function DueCollectionClient() {
                   </div>
                 ) : paymentsError ? (
                   <p className="text-sm text-muted-foreground">
-                    Could not load the payment history.
+                    {t("Could not load the payment history.")}
                   </p>
                 ) : (payments ?? []).length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No payments recorded yet.
+                    {t("No payments recorded yet.")}
                   </p>
                 ) : (
                   <div className="divide-y divide-border">
@@ -533,11 +535,15 @@ export function DueCollectionClient() {
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {payment.method === "BANK_TRANSFER"
-                              ? "Bank transfer"
+                              ? t("Bank transfer")
                               : payment.method === "BKASH"
-                                ? "bKash"
-                                : payment.method.charAt(0) +
-                                  payment.method.slice(1).toLowerCase()}
+                                ? t("bKash")
+                                : payment.method === "NAGAD"
+                                  ? t("Nagad")
+                                  : payment.method === "CASH"
+                                    ? t("Cash")
+                                    : payment.method.charAt(0) +
+                                      payment.method.slice(1).toLowerCase()}
                           </p>
                         </div>
                       </div>
@@ -554,8 +560,7 @@ export function DueCollectionClient() {
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
             <p className="text-sm text-muted-foreground">
-              Select a client above to see their outstanding invoices, record a
-              payment, and review their payment history.
+              {t("Select a client above to see their outstanding invoices, record a payment, and review their payment history.")}
             </p>
           </CardContent>
         </Card>

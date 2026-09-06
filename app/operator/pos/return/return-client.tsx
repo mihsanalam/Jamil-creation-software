@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLanguage } from "@/lib/i18n";
 import {
   Popover,
   PopoverContent,
@@ -105,6 +106,7 @@ const FIELD =
   "h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20";
 
 export function ReturnClient() {
+  const { t } = useLanguage();
   // Step 1 — client.
   const [clientOpen, setClientOpen] = useState(false);
   const [pickedClient, setPickedClient] = useState<ClientOption | null>(null);
@@ -190,7 +192,7 @@ export function ReturnClient() {
       );
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Invoice not found.");
+        toast.error(payload?.message ?? t("Invoice not found."));
         return;
       }
       // Guard against returns against the wrong customer's invoice.
@@ -199,7 +201,7 @@ export function ReturnClient() {
         payload.clientName.toLowerCase() !== pickedClient.name.toLowerCase()
       ) {
         toast.error(
-          `Invoice ${payload.invoiceNumber} belongs to "${payload.clientName}", not "${pickedClient.name}".`
+          `${t("Invoice")} ${payload.invoiceNumber} "${payload.clientName}" ${t("belongs to")}, "${pickedClient.name}" ${t("not")}.`
         );
         return;
       }
@@ -207,7 +209,7 @@ export function ReturnClient() {
       setReturnQty({});
       setReturnReason({});
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsLookingUp(false);
     }
@@ -223,11 +225,11 @@ export function ReturnClient() {
         | LookupProduct
         | null;
       if (!response.ok || !payload?.id) {
-        toast.error("Product not found or out of stock.");
+        toast.error(t("Product not found or out of stock."));
         return false;
       }
       if (exchanges.some((item) => item.productId === payload.id)) {
-        toast.error(`${payload.barcode} is already in the exchange list.`);
+        toast.error(`${payload.barcode} ${t("is already in the exchange list.")}`);
         return false;
       }
       setExchanges((current) => [
@@ -244,7 +246,7 @@ export function ReturnClient() {
       ]);
       return true;
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
       return false;
     }
   }
@@ -334,13 +336,13 @@ export function ReturnClient() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not record the return.");
+        toast.error(payload?.message ?? t("Could not record the return."));
         return;
       }
-      toast.success("Return recorded — stock updated.");
+      toast.success(t("Return recorded — stock updated."));
       setSuccess({ id: payload.id });
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsSubmitting(false);
     }
@@ -351,13 +353,13 @@ export function ReturnClient() {
       {/* Header */}
       <div>
         <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          Point of sale
+          {t("Point of sale")}
         </p>
         <h1 className="mt-1 font-display text-3xl font-bold text-foreground">
-          Return &amp; Exchange
+          {t("Return & Exchange")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Take products back, swap them for others, and hand back the difference.
+          {t("Take products back, swap them for others, and hand back the difference.")}
         </p>
       </div>
 
@@ -368,12 +370,12 @@ export function ReturnClient() {
             <Check className="size-6" aria-hidden />
           </div>
           <h2 className="mt-4 text-lg font-semibold text-charcoal">
-            Return recorded
+            {t("Return recorded")}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Returned goods are back in stock
+            {t("Returned goods are back in stock")}
             {exchanges.length > 0
-              ? " and the exchange items have been taken out of stock"
+              ? t(" and the exchange items have been taken out of stock")
               : ""}
             .{" "}
             {dueCredit > 0 ? (
@@ -381,23 +383,24 @@ export function ReturnClient() {
                 <span className="font-semibold text-charcoal">
                   {formatMoney(dueCredit)}
                 </span>{" "}
-                was credited against the invoice&apos;s due
+                {t("was credited against the invoice's due")}
                 {handedCashback > 0 ? (
                   <>
-                    {" "}and{" "}
+                    {" "}
+                    {t("and")}{" "}
                     <span className="font-semibold text-charcoal">
                       {formatMoney(handedCashback)}
                     </span>{" "}
-                    handed over in cash
+                    {t("handed over in cash")}
                   </>
                 ) : (
-                  " — no cash needed"
+                  t(" — no cash needed")
                 )}
                 .
               </>
             ) : (
               <>
-                Cashback handed over:{" "}
+                {t("Cashback handed over:")}{" "}
                 <span className="font-semibold text-charcoal">
                   {formatMoney(handedCashback)}
                 </span>
@@ -407,14 +410,14 @@ export function ReturnClient() {
           <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
             <Button variant="outline" onClick={resetForm}>
               <RotateCcw className="size-4" aria-hidden />
-              Record another return
+              {t("Record another return")}
             </Button>
             {foundSale && (
               <Link
                 href={`/operator/pos/invoice/${foundSale.id}`}
                 className="inline-flex h-10 items-center justify-center rounded-lg bg-gold px-6 text-sm font-semibold text-charcoal transition-colors hover:bg-gold/90"
               >
-                View invoice
+                {t("View invoice")}
               </Link>
             )}
           </div>
@@ -425,7 +428,7 @@ export function ReturnClient() {
           <div className="grid gap-4 rounded-xl border bg-white p-5 shadow-sm md:grid-cols-2">
             <div>
               <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                1 · Client
+                {t("1 · Client")}
               </Label>
               <Popover open={clientOpen} onOpenChange={setClientOpen}>
                 <PopoverTrigger
@@ -441,15 +444,15 @@ export function ReturnClient() {
                     </span>
                   ) : (
                     <span className="text-muted-foreground">
-                      Select the client making the return…
+                      {t("Select the client making the return…")}
                     </span>
                   )}
                 </PopoverTrigger>
                 <PopoverContent className="w-[320px] p-0" align="start">
                   <Command>
-                    <CommandInput placeholder="Search name or phone…" />
+                    <CommandInput placeholder={t("Search name or phone…")} />
                     <CommandList>
-                      <CommandEmpty>No client found.</CommandEmpty>
+                      <CommandEmpty>{t("No client found.")}</CommandEmpty>
                       <CommandGroup>
                         {(clients ?? []).map((client) => (
                           <CommandItem
@@ -478,14 +481,14 @@ export function ReturnClient() {
                 htmlFor="invoice-number"
                 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
               >
-                2 · Invoice number
+                {t("2 · Invoice number")}
               </Label>
               <form onSubmit={handleLookup} className="mt-2 flex gap-2">
                 <Input
                   id="invoice-number"
                   value={invoiceInput}
                   onChange={(event) => setInvoiceInput(event.target.value)}
-                  placeholder="e.g. 0005"
+                  placeholder={t("e.g. 0005")}
                   disabled={foundSale !== null}
                   className={FIELD}
                 />
@@ -499,7 +502,7 @@ export function ReturnClient() {
                   ) : (
                     <Search className="size-4" aria-hidden />
                   )}
-                  Find
+                  {t("Find")}
                 </Button>
               </form>
             </div>
@@ -511,15 +514,14 @@ export function ReturnClient() {
               <Check className="mt-0.5 size-5 shrink-0 text-green-700" aria-hidden />
               <div className="text-sm">
                 <p className="font-medium text-charcoal">
-                  Invoice {foundSale.invoiceNumber} · {formatMoney(foundSale.total)}
+                  {t("Invoice")} {foundSale.invoiceNumber} · {formatMoney(foundSale.total)}
                 </p>
                 <p className="mt-0.5 text-muted-foreground">
-                  Client:{" "}
+                  {t("Client:")}{" "}
                   <span className="font-medium text-charcoal">
                     {foundSale.clientName}
                   </span>{" "}
-                  ({foundSale.clientPhone}) — confirm this is the customer at
-                  the counter before recording the return.
+                  ({foundSale.clientPhone}) {t("— confirm this is the customer at the counter before recording the return.")}
                 </p>
               </div>
               <Button
@@ -529,7 +531,7 @@ export function ReturnClient() {
                 className="ml-auto shrink-0 text-muted-foreground hover:text-charcoal"
                 onClick={() => setFoundSale(null)}
               >
-                Change
+                {t("Change")}
               </Button>
             </div>
           )}
@@ -547,22 +549,21 @@ export function ReturnClient() {
             <div className="rounded-xl border bg-white shadow-sm">
               <div className="border-b px-5 py-4">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-charcoal">
-                  3 · What is coming back
+                  {t("3 · What is coming back")}
                 </h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Enter the quantity being returned per line (already returned
-                  amounts are excluded from the cap).
+                  {t("Enter the quantity being returned per line (already returned amounts are excluded from the cap).")}
                 </p>
               </div>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-2.5 font-medium">Product</th>
-                    <th className="px-3 py-2.5 text-center font-medium">Sold</th>
-                    <th className="px-3 py-2.5 text-center font-medium">Returned</th>
-                    <th className="px-3 py-2.5 text-right font-medium">Unit price</th>
-                    <th className="px-3 py-2.5 text-center font-medium">Return qty</th>
-                    <th className="px-4 py-2.5 font-medium">Reason</th>
+                    <th className="px-4 py-2.5 font-medium">{t("Product")}</th>
+                    <th className="px-3 py-2.5 text-center font-medium">{t("Sold")}</th>
+                    <th className="px-3 py-2.5 text-center font-medium">{t("Returned")}</th>
+                    <th className="px-3 py-2.5 text-right font-medium">{t("Unit price")}</th>
+                    <th className="px-3 py-2.5 text-center font-medium">{t("Return qty")}</th>
+                    <th className="px-4 py-2.5 font-medium">{t("Reason")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -597,7 +598,7 @@ export function ReturnClient() {
                                 [item.id]: event.target.value,
                               }))
                             }
-                            aria-label={`Return quantity for ${item.productType}`}
+                            aria-label={`${t("Return qty")} · ${item.productType}`}
                             className={cn(FIELD, "w-24 text-center")}
                           />
                         </td>
@@ -611,8 +612,8 @@ export function ReturnClient() {
                                 [item.id]: event.target.value,
                               }))
                             }
-                            placeholder="e.g. defect"
-                            aria-label={`Return reason for ${item.productType}`}
+                            placeholder={t("e.g. defect")}
+                            aria-label={`${t("Reason")} · ${item.productType}`}
                             className={cn(FIELD, "w-44")}
                           />
                         </td>
@@ -628,11 +629,10 @@ export function ReturnClient() {
           {foundSale && sale && (
             <div className="rounded-xl border bg-white p-5 shadow-sm">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-charcoal">
-                4 · Exchange (optional)
+                {t("4 · Exchange (optional)")}
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Scan or type the barcode of anything the client takes in
-                exchange — same price, lower, or higher.
+                {t("Scan or type the barcode of anything the client takes in exchange — same price, lower, or higher.")}
               </p>
 
               <form onSubmit={handleScan} className="mt-3 flex max-w-md gap-2">
@@ -645,7 +645,7 @@ export function ReturnClient() {
                     ref={barcodeInputRef}
                     value={barcodeInput}
                     onChange={(event) => setBarcodeInput(event.target.value)}
-                    placeholder="Scan exchange barcode…"
+                    placeholder={t("Scan exchange barcode…")}
                     className={cn(FIELD, "pl-9")}
                   />
                 </div>
@@ -658,7 +658,7 @@ export function ReturnClient() {
                   {isScanning ? (
                     <Loader2 className="size-4 animate-spin" aria-hidden />
                   ) : (
-                    "Add"
+                    t("Add")
                   )}
                 </Button>
               </form>
@@ -667,10 +667,10 @@ export function ReturnClient() {
                 <table className="mt-4 w-full text-sm">
                   <thead>
                     <tr className="border-y bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="px-3 py-2.5 font-medium">Product</th>
-                      <th className="px-3 py-2.5 text-center font-medium">Qty</th>
-                      <th className="px-3 py-2.5 text-right font-medium">Unit price</th>
-                      <th className="px-3 py-2.5 text-right font-medium">Total</th>
+                      <th className="px-3 py-2.5 font-medium">{t("Product")}</th>
+                      <th className="px-3 py-2.5 text-center font-medium">{t("Qty")}</th>
+                      <th className="px-3 py-2.5 text-right font-medium">{t("Unit price")}</th>
+                      <th className="px-3 py-2.5 text-right font-medium">{t("Total")}</th>
                       <th className="px-3 py-2.5" />
                     </tr>
                   </thead>
@@ -693,7 +693,7 @@ export function ReturnClient() {
                             onChange={(event) =>
                               updateExchangeQuantity(item.productId, event.target.value)
                             }
-                            aria-label={`Exchange quantity for ${item.productType}`}
+                            aria-label={`${t("Return qty")} · ${item.productType}`}
                             className={cn(FIELD, "w-20 text-center")}
                           />
                         </td>
@@ -707,7 +707,7 @@ export function ReturnClient() {
                               updateExchangePrice(item.productId, event.target.value)
                             }
                             placeholder="0.00"
-                            aria-label={`Exchange price for ${item.productType}`}
+                            aria-label={`${t("Unit price")} · ${item.productType}`}
                             className={cn(FIELD, "w-28 text-right")}
                           />
                         </td>
@@ -721,7 +721,7 @@ export function ReturnClient() {
                             size="sm"
                             onClick={() => removeExchange(item.productId)}
                             className="text-muted-foreground hover:text-rust"
-                            aria-label={`Remove ${item.productType} from exchange`}
+                            aria-label={`${t("Remove")} · ${item.productType}`}
                           >
                             <Trash2 className="size-4" aria-hidden />
                           </Button>
@@ -738,20 +738,20 @@ export function ReturnClient() {
           {foundSale && sale && (
             <div className="rounded-xl border bg-white p-5 shadow-sm">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-charcoal">
-                5 · Settle up &amp; confirm
+                {t("5 · Settle up & confirm")}
               </h2>
 
               <dl className="mt-3 max-w-sm space-y-1.5 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Returned value</dt>
+                  <dt className="text-muted-foreground">{t("Returned value")}</dt>
                   <dd className="font-mono">{formatMoney(returnedValue)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Exchange value</dt>
+                  <dt className="text-muted-foreground">{t("Exchange value")}</dt>
                   <dd className="font-mono">-{formatMoney(exchangeValue)}</dd>
                 </div>
                 <div className="flex justify-between border-t pt-1.5 text-base font-semibold">
-                  <dt>Suggested cashback</dt>
+                  <dt>{t("Suggested cashback")}</dt>
                   <dd className="font-mono">{formatMoney(suggestedCashback)}</dd>
                 </div>
               </dl>
@@ -760,33 +760,31 @@ export function ReturnClient() {
                 <div className="mt-3 flex items-start gap-2 max-w-xl rounded-lg border border-gold/40 bg-gold/10 px-4 py-2.5 text-xs text-charcoal">
                   <CircleAlert className="mt-0.5 size-4 shrink-0 text-gold" aria-hidden />
                   <p>
-                    This invoice has{" "}
+                    {t("This invoice has")}{" "}
                     <span className="font-semibold">{formatMoney(saleDue)}</span>{" "}
-                    due. The cashback reduces that due first —{" "}
+                    {t("due. The cashback reduces that due first —")}{" "}
                     {dueCredit > 0 ? (
                       <>
                         <span className="font-semibold">
                           {formatMoney(dueCredit)}
                         </span>{" "}
-                        goes to the due
+                        {t("goes to the due")}
                         {handedCashback > 0 ? (
                           <>
-                            {" "}
-                            and only{" "}
+                            {t(" and only")}{" "}
                             <span className="font-semibold">
                               {formatMoney(handedCashback)}
                             </span>{" "}
-                            is handed over in cash
+                            {t("is handed over in cash")}
                           </>
                         ) : (
-                          " — no cash changes hands"
+                          t(" — no cash changes hands")
                         )}
                         .
                       </>
                     ) : (
                       <>
-                        but the due is already covered — confirm how much cash
-                        to hand over below.
+                        {t("but the due is already covered — confirm how much cash to hand over below.")}
                       </>
                     )}
                   </p>
@@ -796,7 +794,7 @@ export function ReturnClient() {
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <div>
                   <Label htmlFor="cashback" className="text-sm font-semibold text-charcoal">
-                    Cashback to hand over (৳)
+                    {t("Cashback to hand over (৳)")}
                   </Label>
                   <Input
                     id="cashback"
@@ -808,10 +806,10 @@ export function ReturnClient() {
                   />
                   <p className="mt-1.5 text-xs text-muted-foreground">
                     {suggestedCashback < 0
-                      ? "Exchange is worth more — the client pays the difference."
+                      ? t("Exchange is worth more — the client pays the difference.")
                       : saleDue > 0
-                        ? "Credited against the invoice's due first; only the rest is paid in cash."
-                        : "Auto-filled from the difference — adjust if you agreed otherwise."}
+                        ? t("Credited against the invoice's due first; only the rest is paid in cash.")
+                        : t("Auto-filled from the difference — adjust if you agreed otherwise.")}
                   </p>
                 </div>
                 <div>
@@ -819,16 +817,16 @@ export function ReturnClient() {
                     htmlFor="return-notes"
                     className="text-sm font-semibold text-charcoal"
                   >
-                    Notes{" "}
+                    {t("Notes")}{" "}
                     <span className="font-normal text-muted-foreground">
-                      (optional)
+                      {t("(optional)")}
                     </span>
                   </Label>
                   <Textarea
                     id="return-notes"
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
-                    placeholder="e.g. client exchanged for a bigger size, defect confirmed"
+                    placeholder={t("e.g. client exchanged for a bigger size, defect confirmed")}
                     rows={3}
                     className="mt-1.5 rounded-lg border-input bg-white px-3 py-2 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
                   />
@@ -838,7 +836,7 @@ export function ReturnClient() {
               {returnLines.some((line) => line.quantity > line.maxReturnable) && (
                 <p className="mt-4 flex items-center gap-2 rounded-lg border border-rust/30 bg-rust/10 px-4 py-2.5 text-sm text-rust">
                   <CircleAlert className="size-4 shrink-0" aria-hidden />
-                  A return quantity is above what can still be returned on its line.
+                  {t("A return quantity is above what can still be returned on its line.")}
                 </p>
               )}
 
@@ -853,7 +851,7 @@ export function ReturnClient() {
                 ) : (
                   <RotateCcw className="size-4" aria-hidden />
                 )}
-                Confirm return
+                {t("Confirm return")}
               </Button>
             </div>
           )}

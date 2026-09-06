@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // Sale payload returned by GET /api/sales/[id].
@@ -81,6 +82,7 @@ function formatDate(value: string) {
 }
 
 export function InvoiceClient({ saleId }: { saleId: string }) {
+  const { t } = useLanguage();
   const [isPrinting, setIsPrinting] = useState(false);
 
   // Record-return dialog state.
@@ -120,12 +122,12 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
     const quantity = Number(returnQuantity);
     const maxReturnable = returnItem.quantity - returnItem.returnedQuantity;
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      toast.error("Quantity must be a number greater than 0.");
+      toast.error(t("Quantity must be a number greater than 0."));
       return;
     }
     if (quantity > maxReturnable) {
       toast.error(
-        `Only ${maxReturnable} of the ${returnItem.quantity} sold can still be returned.`
+        `${t("Only")} ${maxReturnable} ${t("of the")} ${returnItem.quantity} ${t("sold can still be returned.")}`
       );
       return;
     }
@@ -143,16 +145,16 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not record the return.");
+        toast.error(payload?.message ?? t("Could not record the return."));
         return;
       }
       toast.success(
-        `Return recorded for "${returnItem.productType}" — stock has been restored.`
+        `${t("Return recorded for")} "${returnItem.productType}" — ${t("stock has been restored.")}`
       );
       setReturnItem(null);
       mutate();
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsSavingReturn(false);
     }
@@ -171,7 +173,7 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
   if (error || !sale) {
     return (
       <div className="rounded-xl border bg-white p-6 text-sm text-muted-foreground">
-        {error?.message ?? "Invoice not found."}
+        {error?.message ?? t("Invoice not found.")}
       </div>
     );
   }
@@ -182,15 +184,15 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
       <div className="flex items-center justify-between print:hidden">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            Point of sale
+            {t("Point of sale")}
           </p>
           <h1 className="mt-1 font-display text-3xl font-bold text-foreground">
-            Invoice
+            {t("Invoice")}
           </h1>
         </div>
         <Button onClick={handlePrint} disabled={isPrinting}>
           <Printer className="size-4" />
-          Print
+          {t("Print")}
         </Button>
       </div>
 
@@ -201,7 +203,7 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
           <div>
             <p className="font-display text-2xl font-bold">Jamil Creations</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Garments manufacturer &amp; wholesaler
+              {t("Garments manufacturer & wholesaler")}
             </p>
           </div>
           <div className="text-right">
@@ -218,7 +220,7 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
         <div className="grid gap-6 py-5 sm:grid-cols-2">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Billed to
+              {t("Billed to")}
             </p>
             <p className="mt-1.5 font-medium">{sale.client.name}</p>
             <p className="text-sm text-muted-foreground">{sale.client.phone}</p>
@@ -228,15 +230,15 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
               </p>
             )}
             <p className="mt-1 text-xs text-muted-foreground">
-              {sale.client.type === "WHOLESALE" ? "Wholesale" : "Retail"} client
+              {t(sale.client.type === "WHOLESALE" ? "Wholesale" : "Retail")} {t("client")}
             </p>
           </div>
           <div className="sm:text-right">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Payment
+              {t("Payment")}
             </p>
             <p className="mt-1.5 text-sm">
-              {PAYMENT_METHOD_LABELS[sale.paymentMethod] ?? sale.paymentMethod}
+              {t(PAYMENT_METHOD_LABELS[sale.paymentMethod] ?? sale.paymentMethod)}
             </p>
             <span
               className={cn(
@@ -249,10 +251,10 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
               )}
             >
               {sale.paymentStatus === "PAID"
-                ? "Paid in full"
+                ? t("Paid in full")
                 : sale.paymentStatus === "PARTIAL"
-                  ? "Partially paid"
-                  : "Due"}
+                  ? t("Partially paid")
+                  : t("Due")}
             </span>
           </div>
         </div>
@@ -261,12 +263,12 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-y bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-3 py-2.5 font-medium">Product</th>
-              <th className="px-3 py-2.5 text-center font-medium">Qty</th>
-              <th className="px-3 py-2.5 text-right font-medium">Unit price</th>
-              <th className="px-3 py-2.5 text-right font-medium">Total</th>
+              <th className="px-3 py-2.5 font-medium">{t("Product")}</th>
+              <th className="px-3 py-2.5 text-center font-medium">{t("Qty")}</th>
+              <th className="px-3 py-2.5 text-right font-medium">{t("Unit price")}</th>
+              <th className="px-3 py-2.5 text-right font-medium">{t("Total")}</th>
               <th className="print:hidden px-3 py-2.5 text-right font-medium">
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">{t("Actions")}</span>
               </th>
             </tr>
           </thead>
@@ -285,7 +287,7 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
                     {item.quantity}
                     {item.returnedQuantity > 0 && (
                       <p className="text-xs text-amber-700">
-                        {item.returnedQuantity} returned
+                        {item.returnedQuantity} {t("returned")}
                       </p>
                     )}
                   </td>
@@ -304,13 +306,13 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
                       disabled={maxReturnable <= 0}
                       title={
                         maxReturnable <= 0
-                          ? "Fully returned"
-                          : `Return up to ${maxReturnable}`
+                          ? t("Fully returned")
+                          : `${t("Return up to")} ${maxReturnable}`
                       }
                       className="h-8 rounded-lg border-border bg-white px-3 text-xs font-medium text-charcoal transition-colors hover:border-gold hover:bg-gold/5 disabled:opacity-50"
                     >
                       <RotateCcw className="size-3.5" aria-hidden />
-                      {maxReturnable <= 0 ? "Returned" : "Record return"}
+                      {maxReturnable <= 0 ? t("Returned") : t("Record return")}
                     </Button>
                   </td>
                 </tr>
@@ -323,19 +325,19 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
         <div className="mt-5 flex justify-end">
           <dl className="w-full max-w-xs space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Subtotal</dt>
+              <dt className="text-muted-foreground">{t("Subtotal")}</dt>
               <dd>{formatMoney(sale.subtotal)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Discount</dt>
+              <dt className="text-muted-foreground">{t("Discount")}</dt>
               <dd>-{formatMoney(sale.discount)}</dd>
             </div>
             <div className="flex justify-between border-t pt-2 text-base font-semibold">
-              <dt>Total</dt>
+              <dt>{t("Total")}</dt>
               <dd className="font-display">{formatMoney(sale.total)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Amount paid</dt>
+              <dt className="text-muted-foreground">{t("Amount paid")}</dt>
               <dd>{formatMoney(sale.amountPaid)}</dd>
             </div>
             <div className="flex justify-between">
@@ -344,7 +346,7 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
                   sale.total - sale.amountPaid > 0 && "text-rust font-medium"
                 )}
               >
-                Due
+                {t("Due")}
               </dt>
               <dd
                 className={cn(
@@ -360,7 +362,7 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
         </div>
 
         <p className="mt-6 border-t pt-4 text-center text-xs text-muted-foreground">
-          Thank you for your business — Jamil Creations
+          {t("Thank you for your business — Jamil Creations")}
         </p>
 
 
@@ -378,7 +380,7 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
           <div className="border-b border-border bg-cream px-6 py-4">
             <DialogHeader className="gap-1 text-left">
               <DialogTitle className="text-base font-semibold text-charcoal">
-                Record return
+                {t("Record return")}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
                 {returnItem && (
@@ -386,8 +388,7 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
                     {returnItem.productType} · {returnItem.barcode}
                   </>
                 )}{" "}
-                — the returned quantity goes back into stock. The invoice total
-                is not changed; any refund is handled by the Owner.
+                {t("— the returned quantity goes back into stock. The invoice total is not changed; any refund is handled by the Owner.")}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -396,11 +397,11 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
             <div className="space-y-4 px-6 py-5">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="return-quantity" className="text-sm font-semibold text-charcoal">
-                  Quantity
+                  {t("Quantity")}
                   {returnItem && (
                     <span className="font-normal text-muted-foreground">
                       {" "}
-                      — up to{" "}
+                      {t("— up to")}{" "}
                       {returnItem.quantity - returnItem.returnedQuantity}
                     </span>
                   )}
@@ -421,13 +422,13 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="return-reason" className="text-sm font-semibold text-charcoal">
-                  Reason <span className="font-normal text-muted-foreground">(optional)</span>
+                  {t("Reason")} <span className="font-normal text-muted-foreground">{t("(optional)")}</span>
                 </Label>
                 <Textarea
                   id="return-reason"
                   value={returnReason}
                   onChange={(event) => setReturnReason(event.target.value)}
-                  placeholder="e.g. stitching defect on 2 pieces"
+                  placeholder={t("e.g. stitching defect on 2 pieces")}
                   rows={3}
                   className="rounded-lg border-input bg-white px-3 py-2 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
                 />
@@ -442,7 +443,7 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
                 disabled={isSavingReturn}
                 className="h-9 rounded-lg text-sm font-medium text-muted-foreground hover:text-charcoal"
               >
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button
                 type="submit"
@@ -452,10 +453,10 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
                 {isSavingReturn ? (
                   <>
                     <Loader2 className="size-4 animate-spin" aria-hidden />
-                    Saving…
+                    {t("Saving…")}
                   </>
                 ) : (
-                  "Record return"
+                  t("Record return")
                 )}
               </Button>
             </DialogFooter>

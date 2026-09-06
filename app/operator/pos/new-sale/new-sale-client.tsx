@@ -23,6 +23,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 // Client option in the picker (from GET /api/clients).
@@ -82,6 +83,7 @@ function formatMoney(value: number) {
 }
 
 export function NewSaleClient() {
+  const { t } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -160,7 +162,7 @@ export function NewSaleClient() {
       // The lookup endpoint only returns IN_STOCK lots with stock left, so a
       // non-ok response covers both "unknown barcode" and "nothing left".
       if (!response.ok) {
-        toast.error("Product not found or out of stock.");
+        toast.error(t("Product not found or out of stock."));
         keepAndSelectBarcodeInput();
         return;
       }
@@ -168,13 +170,13 @@ export function NewSaleClient() {
       const payload = await response.json().catch(() => null);
       const product = payload as LookupProduct | null;
       if (!product?.id) {
-        toast.error("Product not found or out of stock.");
+        toast.error(t("Product not found or out of stock."));
         keepAndSelectBarcodeInput();
         return;
       }
 
       if (cartRef.current.some((item) => item.productId === product.id)) {
-        toast.error(`${product.barcode} is already in the cart.`);
+        toast.error(`${product.barcode} ${t("is already in the cart.")}`);
         keepAndSelectBarcodeInput();
         return;
       }
@@ -194,7 +196,7 @@ export function NewSaleClient() {
       setBarcodeInput("");
       barcodeInputRef.current?.focus();
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
       keepAndSelectBarcodeInput();
     }
   }
@@ -262,7 +264,7 @@ export function NewSaleClient() {
   async function handleCompleteSale() {
     if (!selectedClient || cart.length === 0) return;
     if (cart.some((item) => !(Number(item.unitPrice) > 0))) {
-      toast.error("Every item needs a unit price before completing the sale.");
+      toast.error(t("Every item needs a unit price before completing the sale."));
       return;
     }
 
@@ -285,14 +287,14 @@ export function NewSaleClient() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? "Could not record the sale.");
+        toast.error(payload?.message ?? t("Could not record the sale."));
         return;
       }
 
-      toast.success("Sale recorded — opening the invoice…");
+      toast.success(t("Sale recorded — opening the invoice…"));
       router.push(`/operator/pos/invoice/${payload.id}`);
     } catch {
-      toast.error("Could not reach the server. Please check your connection.");
+      toast.error(t("Could not reach the server. Please check your connection."));
     } finally {
       setIsSubmitting(false);
     }
@@ -309,10 +311,10 @@ export function NewSaleClient() {
       {/* Page header */}
       <div>
         <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          Point of sale
+          {t("Point of sale")}
         </p>
         <h1 className="mt-1 font-display text-3xl font-bold text-foreground">
-          New sale
+          {t("New sale")}
         </h1>
       </div>
 
@@ -335,7 +337,7 @@ export function NewSaleClient() {
               </span>
             </span>
           ) : (
-            <span>Select a client…</span>
+            <span>{t("Select a client…")}</span>
           )}
           <ChevronDown
             className={cn(
@@ -347,7 +349,7 @@ export function NewSaleClient() {
         </PopoverTrigger>
         <PopoverContent className="w-[min(36rem,90vw)] p-0" align="start">
           <Command>
-            <CommandInput placeholder="Search clients by name…" />
+            <CommandInput placeholder={t("Search clients by name…")} />
             <CommandList>
               {clientsLoading ? (
                 <div className="space-y-2 p-3">
@@ -357,7 +359,7 @@ export function NewSaleClient() {
                 </div>
               ) : (
                 <>
-                  <CommandEmpty>No client found.</CommandEmpty>
+                  <CommandEmpty>{t("No client found.")}</CommandEmpty>
                   <CommandGroup>
                     {(clients ?? []).map((client) => (
                       <CommandItem
@@ -379,7 +381,7 @@ export function NewSaleClient() {
                         <span className="flex-1">{client.name}</span>
                         <span className="text-xs text-muted-foreground">
                           {client.phone} ·{" "}
-                          {client.type === "WHOLESALE" ? "Wholesale" : "Retail"}
+                          {t(client.type === "WHOLESALE" ? "Wholesale" : "Retail")}
                         </span>
                       </CommandItem>
                     ))}
@@ -400,43 +402,43 @@ export function NewSaleClient() {
               ref={barcodeInputRef}
               value={barcodeInput}
               onChange={(event) => setBarcodeInput(event.target.value)}
-              placeholder="Scan barcode or type JC-0001 then press Enter"
+              placeholder={t("Scan barcode or type JC-0001 then press Enter")}
               className="h-11 pl-9 font-mono"
               autoFocus
             />
           </div>
           <Button type="submit" disabled={barcodeInput.trim() === "" || isScanning}>
-            {isScanning ? <Loader2 className="size-4 animate-spin" /> : "Add"}
+            {isScanning ? <Loader2 className="size-4 animate-spin" /> : t("Add")}
           </Button>
         </form>
         {/* Manual fallback for PCs without a scanner attached. */}
         <p className="mt-2 text-xs text-muted-foreground">
-          No scanner at this PC?{" "}
+          {t("No scanner at this PC?")}{" "}
           <button
             type="button"
             onClick={keepAndSelectBarcodeInput}
             className="font-semibold text-charcoal underline decoration-gold underline-offset-2 transition-colors hover:text-gold"
           >
-            Or enter barcode manually
+            {t("Or enter barcode manually")}
           </button>{" "}
-          — type it (e.g. JC-0001) and press Enter, exactly like a scan.
+          {t("— type it (e.g. JC-0001) and press Enter, exactly like a scan.")}
         </p>
       </div>
 
       {/* Cart */}
       {cart.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-white/60 p-8 text-center text-sm text-muted-foreground">
-          No items yet — scan a barcode above to start the sale.
+          {t("No items yet — scan a barcode above to start the sale.")}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border bg-white">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-4 py-2.5 font-medium">Product</th>
-                <th className="px-4 py-2.5 font-medium">Quantity</th>
-                <th className="px-4 py-2.5 font-medium">Unit price (৳)</th>
-                <th className="px-4 py-2.5 font-medium">Line total</th>
+                <th className="px-4 py-2.5 font-medium">{t("Product")}</th>
+                <th className="px-4 py-2.5 font-medium">{t("Quantity")}</th>
+                <th className="px-4 py-2.5 font-medium">{t("Unit price (৳)")}</th>
+                <th className="px-4 py-2.5 font-medium">{t("Line total")}</th>
                 <th className="px-4 py-2.5" />
               </tr>
             </thead>
@@ -463,7 +465,7 @@ export function NewSaleClient() {
                       className="h-9 w-24"
                     />
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {item.available} left in stock
+                      {item.available} {t("left in stock")}
                     </p>
                   </td>
                   <td className="px-4 py-3">
@@ -503,15 +505,15 @@ export function NewSaleClient() {
 
       {/* Payment summary panel */}
       <div className="max-w-xl rounded-xl border bg-white p-5">
-        <h2 className="font-display text-lg font-semibold">Payment summary</h2>
+        <h2 className="font-display text-lg font-semibold">{t("Payment summary")}</h2>
 
         <dl className="mt-4 space-y-2 text-sm">
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">Subtotal</dt>
+            <dt className="text-muted-foreground">{t("Subtotal")}</dt>
             <dd className="font-medium">{formatMoney(subtotal)}</dd>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <dt className="text-muted-foreground">Discount</dt>
+            <dt className="text-muted-foreground">{t("Discount")}</dt>
             <dd>
               <Input
                 type="number"
@@ -524,7 +526,7 @@ export function NewSaleClient() {
             </dd>
           </div>
           <div className="flex justify-between border-t pt-2 text-base">
-            <dt className="font-semibold">Total</dt>
+            <dt className="font-semibold">{t("Total")}</dt>
             <dd className="font-display font-bold">{formatMoney(total)}</dd>
           </div>
         </dl>
@@ -532,7 +534,7 @@ export function NewSaleClient() {
         {/* Payment method pills */}
         <div className="mt-4">
           <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-            Payment method
+            {t("Payment method")}
           </Label>
           <div className="mt-2 flex flex-wrap gap-2">
             {PAYMENT_METHODS.map((method) => (
@@ -547,7 +549,7 @@ export function NewSaleClient() {
                     : "bg-muted/40 hover:bg-muted"
                 )}
               >
-                {method.label}
+                {t(method.label)}
               </button>
             ))}
           </div>
@@ -556,7 +558,7 @@ export function NewSaleClient() {
         {/* Paid in full vs wholesale credit */}
         <div className="mt-4">
           <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-            Payment
+            {t("Payment")}
           </Label>
           <div className="mt-2 flex gap-2">
             <button
@@ -569,7 +571,7 @@ export function NewSaleClient() {
                   : "bg-muted/40 hover:bg-muted"
               )}
             >
-              Paid in full
+              {t("Paid in full")}
             </button>
             <button
               type="button"
@@ -581,14 +583,14 @@ export function NewSaleClient() {
                   : "bg-muted/40 hover:bg-muted"
               )}
             >
-              Wholesale credit
+              {t("Wholesale credit")}
             </button>
           </div>
         </div>
 
         {payMode === "CREDIT" && (
           <div className="mt-4">
-            <Label htmlFor="amount-paid">Amount paid now (৳)</Label>
+            <Label htmlFor="amount-paid">{t("Amount paid now (৳)")}</Label>
             <Input
               id="amount-paid"
               type="number"
@@ -599,7 +601,7 @@ export function NewSaleClient() {
               className="mt-1.5 h-10"
             />
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Due after this payment:{" "}
+              {t("Due after this payment:")}{" "}
               <span className="font-medium text-rust">
                 {formatMoney(Math.max(total - amountPaid, 0))}
               </span>
@@ -616,7 +618,7 @@ export function NewSaleClient() {
           {isSubmitting ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
-            "Complete sale"
+            t("Complete sale")
           )}
         </Button>
       </div>
