@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Boxes,
   ClipboardList,
   LayoutDashboard,
+  Menu,
   PackagePlus,
   ReceiptText,
   RotateCcw,
@@ -13,6 +15,7 @@ import {
   Users2,
   Wallet,
   Warehouse,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -74,6 +77,48 @@ interface SidebarProps {
 }
 
 /**
+ * The nav list itself — shared by the desktop rail and the mobile drawer so
+ * both always render the same items with the same active highlight.
+ */
+function NavList({
+  items,
+  activeRoute,
+  onNavigate,
+}: {
+  items: NavItem[];
+  activeRoute?: string;
+  /** Called when a link is tapped (used to close the mobile drawer). */
+  onNavigate?: () => void;
+}) {
+  const { t } = useLanguage();
+
+  return (
+    <nav aria-label="Main" className="flex flex-1 flex-col gap-1 overflow-y-auto">
+      {items.map(({ label, href, key, icon: Icon }) => {
+        const isActive = key === activeRoute;
+        return (
+          <Link
+            key={key}
+            href={href}
+            onClick={onNavigate}
+            aria-current={isActive ? "page" : undefined}
+            className={cn(
+              "flex items-center gap-3 border-l-[3px] px-4 py-2.5 text-sm transition-colors",
+              isActive
+                ? "border-gold bg-charcoal/70 font-semibold text-gold"
+                : "border-transparent text-cream/70 hover:bg-charcoal/70 hover:text-cream"
+            )}
+          >
+            <Icon className="size-4 shrink-0" aria-hidden />
+            {t(label)}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+/**
  * Shared app sidebar used by every /owner, /collector and /operator page
  * (see CLAUDE.md "UI Rule — Sidebar"). Charcoal rail with a serif gold
  * wordmark; the active item is highlighted with the brand gold accent.
@@ -81,45 +126,120 @@ interface SidebarProps {
 export function Sidebar({ role, activeRoute }: SidebarProps) {
   const { subtitle, items } = NAV_BY_ROLE[role];
   const { t } = useLanguage();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // While the mobile drawer is open: lock page scroll and close on Escape.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDrawerOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [drawerOpen]);
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-70 shrink-0 flex-col border-r border-charcoal/20 bg-charcoal py-6 md:flex">
-      <div className="mb-8 px-5">
-        <h1 className="font-serif text-2xl font-bold tracking-tight text-gold">
+    <>
+      {/* ── Mobile top bar (below md) ──────────────────────────────────── */}
+      <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b border-cream/10 bg-charcoal px-4 md:hidden">
+        <h1 className="font-serif text-lg font-bold tracking-tight text-gold">
           Jamil Creations
         </h1>
-        <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-cream/60">
-          {t(subtitle)}
-        </p>
-      </div>
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          aria-label={t("Menu")}
+          aria-expanded={drawerOpen}
+          aria-controls="mobile-sidebar"
+          className="cursor-pointer rounded-md p-2 text-cream transition-colors hover:bg-charcoal/70 hover:text-gold"
+        >
+          <Menu className="size-6" aria-hidden />
+        </button>
+      </header>
 
-      <nav aria-label="Main" className="flex flex-1 flex-col gap-1">
-        {items.map(({ label, href, key, icon: Icon }) => {
-          const isActive = key === activeRoute;
-          return (
-            <Link
-              key={key}
-              href={href}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-3 border-l-[3px] px-4 py-2.5 text-sm transition-colors",
-                isActive
-                  ? "border-gold bg-charcoal/70 font-semibold text-gold"
-                  : "border-transparent text-cream/70 hover:bg-charcoal/70 hover:text-cream"
-              )}
+      {/* ── Mobile slide-in drawer (below md) ──────────────────────────── */}
+      {/* visibility (not unmount) so the slide-out transition can play;
+          visibility:hidden keeps it out of hit-testing and tab order. */}
+      <div
+        className={cn(
+          "fixed inset-0 z-50 md:hidden",
+          drawerOpen ? "visible" : "invisible"
+        )}
+        aria-hidden={!drawerOpen}
+      >
+        {/* dimmed backdrop — tap to close */}
+        <div
+          onClick={() => setDrawerOpen(false)}
+          className={cn(
+            "absolute inset-0 bg-charcoal/60 transition-opacity duration-200",
+            drawerOpen ? "opacity-100" : "opacity-0"
+          )}
+        />
+        {/* panel */}
+        <div
+          id="mobile-sidebar"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t(subtitle)}
+          className={cn(
+            "absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-charcoal py-6 shadow-2xl transition-[transform,visibility] duration-200",
+            drawerOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <div className="mb-1 flex items-start justify-between gap-2 pl-5 pr-3">
+            <h2 className="font-serif text-2xl font-bold tracking-tight text-gold">
+              Jamil Creations
+            </h2>
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(false)}
+              aria-label={t("Close menu")}
+              className="cursor-pointer rounded-md p-2 text-cream/70 transition-colors hover:bg-charcoal/70 hover:text-cream"
             >
-              <Icon className="size-4 shrink-0" aria-hidden />
-              {t(label)}
-            </Link>
-          );
-        })}
-      </nav>
+              <X className="size-5" aria-hidden />
+            </button>
+          </div>
+          <p className="mb-8 px-5 text-xs font-semibold uppercase tracking-widest text-cream/60">
+            {t(subtitle)}
+          </p>
 
-      <div className="mt-auto border-t border-charcoal/40 px-3 pt-4">
-        <LanguageToggle />
-        <SignOutButton />
+          <NavList
+            items={items}
+            activeRoute={activeRoute}
+            onNavigate={() => setDrawerOpen(false)}
+          />
+
+          <div className="mt-auto border-t border-charcoal/40 px-3 pt-4">
+            <LanguageToggle />
+            <SignOutButton />
+          </div>
+        </div>
       </div>
-    </aside>
+
+      {/* ── Desktop rail (md and up) ───────────────────────────────────── */}
+      <aside className="sticky top-0 hidden h-screen w-70 shrink-0 flex-col border-r border-charcoal/20 bg-charcoal py-6 md:flex">
+        <div className="mb-8 px-5">
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-gold">
+            Jamil Creations
+          </h1>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-cream/60">
+            {t(subtitle)}
+          </p>
+        </div>
+
+        <NavList items={items} activeRoute={activeRoute} />
+
+        <div className="mt-auto border-t border-charcoal/40 px-3 pt-4">
+          <LanguageToggle />
+          <SignOutButton />
+        </div>
+      </aside>
+    </>
   );
 }
 

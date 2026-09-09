@@ -16,7 +16,7 @@ export default async function InvoicePage({
   const { id } = await params;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar role="OPERATOR" activeRoute="new-sale" />
 
       <main className="flex-1 bg-cream px-4 py-8 md:px-10 md:py-12">

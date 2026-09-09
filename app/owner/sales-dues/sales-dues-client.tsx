@@ -330,11 +330,10 @@ export default function SalesDuesClient() {
     // --- Page body ---
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar role="OWNER" activeRoute="sales-dues" />
+    <div className="flex h-screen flex-col overflow-hidden md:flex-row">
+      <Sidebar role="OWNER" activeRoute="sales-dues" />
 
-        <main className="flex-1 overflow-y-auto bg-background">
+      <main className="flex-1 overflow-y-auto bg-background">
           <div className="w-full px-6 py-6">
             {/* Header + range picker */}
             <div className="flex items-center justify-between">
@@ -438,7 +437,6 @@ export default function SalesDuesClient() {
             </Tabs>
           </div>
         </main>
-      </div>
     </div>
   );
 }

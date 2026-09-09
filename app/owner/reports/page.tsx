@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 // Server-rendered page; auth (OWNER-only) is enforced by middleware.
 export default function ReportsPage() {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar role="OWNER" activeRoute="reports" />
 
       <main className="flex-1 bg-cream px-4 py-8 md:px-10 md:py-12">
