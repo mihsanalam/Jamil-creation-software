@@ -37,7 +37,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      {/* suppressHydrationWarning: browser extensions (Grammarly, LanguageTool,
+          Dark Reader, …) add attributes to <body> before React hydrates and
+          would otherwise trigger a false hydration mismatch error. */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <TooltipProvider>
           <Providers>
             {children}
