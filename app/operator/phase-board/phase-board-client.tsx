@@ -174,7 +174,7 @@ export function PhaseBoardClient() {
 
       {/* Loading skeleton */}
       {isLoading && (
-        <div className="grid auto-cols-[minmax(220px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2">
+        <div className="grid auto-cols-[220px] grid-flow-col gap-4 overflow-x-auto pb-2 md:auto-cols-[minmax(220px,1fr)]">
           {[0, 1, 2, 3].map((index) => (
             <div key={index} className="w-55 space-y-3">
               <Skeleton className="h-9 w-full rounded-lg" />
@@ -193,7 +193,7 @@ export function PhaseBoardClient() {
       )}
 {/* Kanban-style phase columns */}
       {!isLoading && !error && filteredOrders.length > 0 && (
-        <div className="grid auto-cols-[minmax(230px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-4">
+        <div className="grid auto-cols-[230px] grid-flow-col gap-4 overflow-x-auto pb-4 md:auto-cols-[minmax(230px,1fr)]">
           {columns.map((columnName) => {
             const cardOrders = cardsByColumn.get(columnName) ?? [];
             return (

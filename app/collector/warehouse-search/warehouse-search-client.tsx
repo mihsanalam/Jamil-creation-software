@@ -125,7 +125,7 @@ export function WarehouseSearchClient() {
 
       {/* Results table */}
       {!isLoading && !error && (data?.length ?? 0) > 0 && (
-        <div className="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-border bg-white shadow-sm">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">

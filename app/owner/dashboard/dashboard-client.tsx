@@ -248,6 +248,7 @@ export function DashboardClient() {
                 {t("No sales recorded yet.")}
               </p>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -272,6 +273,7 @@ export function DashboardClient() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -293,6 +295,7 @@ export function DashboardClient() {
                 {t("No outstanding dues — everyone is settled. 🎉")}
               </p>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -313,6 +316,7 @@ export function DashboardClient() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -335,6 +339,7 @@ export function DashboardClient() {
               {t("No returns or exchanges recorded yet.")}
             </p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -401,6 +406,7 @@ export function DashboardClient() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
           {!isLoading &&
             ((data?.exchangedPcsTotal ?? 0) > 0 ||
