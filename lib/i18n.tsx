@@ -37,6 +37,25 @@ const BN: Record<string, string> = {
   Clients: "কাস্টমার",
   "Due Collection": "বাকি আদায়",
   "Sign out": "সাইন আউট",
+  Menu: "মেনু",
+  "Close menu": "মেনু বন্ধ করুন",
+
+  // ── Camera barcode scanner ───────────────────────────────────────────
+  "Scan barcode": "বারকোড স্ক্যান",
+  "Scan with the camera": "ক্যামেরা দিয়ে স্ক্যান",
+  "Point the camera at a product barcode (e.g. JC-0001).":
+    "পণ্যের বারকোডে (যেমন JC-0001) ক্যামেরা ধরুন।",
+  "Starting camera…": "ক্যামেরা চালু হচ্ছে…",
+  "Camera permission was denied. Allow camera access and try again.":
+    "ক্যামেরার অনুমতি দেওয়া হয়নি। ক্যামেরার অনুমতি দিয়ে আবার চেষ্টা করুন।",
+  "No camera was found on this device.": "এই ডিভাইসে কোনো ক্যামেরা পাওয়া যায়নি।",
+  "Camera scanning needs a secure (HTTPS) connection.":
+    "ক্যামেরা স্ক্যানের জন্য নিরাপদ (HTTPS) সংযোগ প্রয়োজন।",
+  "This browser does not support camera scanning.":
+    "এই ব্রাউজার ক্যামেরা স্ক্যান সমর্থন করে না।",
+  "Could not start the camera.": "ক্যামেরা চালু করা যায়নি।",
+  "Each scan is added straight to the cart — keep scanning, then close this window when you are done.":
+    "প্রতিটি স্ক্যান সরাসরি কার্টে যোগ হবে — স্ক্যান চালিয়ে যান, কাজ শেষ হলে এই উইন্ডোটি বন্ধ করুন।",
 
   // ── Statuses (StatusBadge) ───────────────────────────────────────────
   PENDING: "অপেক্ষমাণ",

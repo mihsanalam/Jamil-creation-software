@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Check, ChevronDown, Loader2, ScanBarcode, Trash2 } from "lucide-react";
+import { Camera, Check, ChevronDown, Loader2, ScanBarcode, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { BarcodeScannerDialog } from "@/components/shared/barcode-scanner-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -91,6 +92,7 @@ export function NewSaleClient() {
   const [pickedClient, setPickedClient] = useState<ClientOption | null>(null);
   const [barcodeInput, setBarcodeInput] = useState("");
   const [isScanning, setIsScanning] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discountInput, setDiscountInput] = useState("0");
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
@@ -205,17 +207,15 @@ export function NewSaleClient() {
   // hits Enter, so the form's onSubmit IS the scan event. The lookup runs on
   // Enter only, never on every keystroke. While one lookup is in flight a
   // fast second scan is queued (latest wins) and processed right after, so
-  // rapid multi-scanning never silently drops an item.
-  async function handleScan(event: FormEvent) {
-    event.preventDefault();
-    const barcode = barcodeInput.trim();
-    if (barcode === "") return;
+  // rapid multi-scanning never silently drops an item. The phone-camera
+  // scanner feeds the exact same queue through runScanLoop().
+  async function runScanLoop(firstBarcode: string) {
     if (isScanning) {
-      pendingScanRef.current = barcode;
+      pendingScanRef.current = firstBarcode;
       return;
     }
 
-    let current = barcode;
+    let current = firstBarcode;
     setIsScanning(true);
     try {
       do {
@@ -226,6 +226,12 @@ export function NewSaleClient() {
     } finally {
       setIsScanning(false);
     }
+  }
+
+  function handleScan(event: FormEvent) {
+    event.preventDefault();
+    const barcode = barcodeInput.trim();
+    if (barcode !== "") void runScanLoop(barcode);
   }
 
   function updateItemUnitPrice(productId: string, value: string) {
@@ -407,6 +413,16 @@ export function NewSaleClient() {
               autoFocus
             />
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setCameraOpen(true)}
+            aria-label={t("Scan with the camera")}
+            title={t("Scan with the camera")}
+            className="size-11 shrink-0"
+          >
+            <Camera className="size-4" />
+          </Button>
           <Button type="submit" disabled={barcodeInput.trim() === "" || isScanning}>
             {isScanning ? <Loader2 className="size-4 animate-spin" /> : t("Add")}
           </Button>
@@ -626,6 +642,13 @@ export function NewSaleClient() {
 
 
       {/* MAIN_GRID_ANCHOR */}
+
+      {/* Phone-camera scanner — same lookup pipeline as the USB input. */}
+      <BarcodeScannerDialog
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        onDetected={(barcode) => void runScanLoop(barcode)}
+      />
     </div>
   );
 }
