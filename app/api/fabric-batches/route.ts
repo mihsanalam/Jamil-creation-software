@@ -14,11 +14,35 @@ interface BatchNumberRow extends RowDataPacket {
 const ALLOWED_UNITS = new Set(["meters", "kg"]);
 const BATCH_STATUSES = new Set(["PENDING", "IN_PRODUCTION", "READY", "SOLD"]);
 
+// Whitelisted sort columns — maps a client-provided sort key to a real SQL
+// column. Only ever interpolated after the key is checked against this map.
+const SORT_COLUMNS: Record<string, string> = {
+  createdAt: "fb.created_at",
+  batchNumber: "fb.batch_number",
+  fabricType: "fb.fabric_type",
+  quantity: "fb.quantity",
+  dateReceived: "fb.date_received",
+  status: "fb.status",
+  supplier: "fb.supplier",
+  recordedByName: "u.name",
+};
+const DEFAULT_SORT_BY = "createdAt";
+const DEFAULT_SORT_DIR = "desc";
+
+// One COUNT(*) result (used for pagination totals).
+interface CountRow extends RowDataPacket {
+  value: string | number;
+}
+
 /**
  * Lists fabric batches newest-first for the collector's Batch List screen.
- * Optional query params:
+ * Supports status/search filters, server-side pagination and column sorting:
  * - status: one of PENDING | IN_PRODUCTION | READY | SOLD, or "all"
  * - search: case-insensitive partial match against batch number or supplier
+ * - limit: max rows to return (1–100; omit for no limit)
+ * - offset: how many rows to skip (used with limit for "load more")
+ * - sortBy / sortDir: one of SORT_COLUMNS keys, "asc" or "desc"
+ * Always responds { items, total, hasMore } so the client can page through.
  */
 export async function GET(request: Request) {
   // Middleware skips /api routes, so the session is verified here directly.
@@ -44,6 +68,59 @@ export async function GET(request: Request) {
       { status: 400 }
     );
   }
+
+  // Pagination params are optional — omit both for "everything". When limit
+  // is given, offset skips already-loaded rows so "load more" can append.
+  let limit: number | null = null;
+  let offset = 0;
+  const limitRaw = searchParams.get("limit")?.trim();
+  const offsetRaw = searchParams.get("offset")?.trim();
+  if (limitRaw !== null && limitRaw !== "") {
+    limit = Number(limitRaw);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        {
+          message: `Invalid limit "${limitRaw}" — must be a whole number between 1 and 100.`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+  if (offsetRaw !== null && offsetRaw !== "") {
+    offset = Number(offsetRaw);
+    if (!Number.isInteger(offset) || offset < 0) {
+      return NextResponse.json(
+        {
+          message: `Invalid offset "${offsetRaw}" — must be zero or a positive whole number.`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Sorting is optional; only keys in SORT_COLUMNS are accepted. The ORDER BY
+  // fragment stays safe because the key is always checked against that map.
+  const sortBy = searchParams.get("sortBy")?.trim() || DEFAULT_SORT_BY;
+  if (!SORT_COLUMNS[sortBy]) {
+    return NextResponse.json(
+      {
+        message: `Invalid sortBy "${sortBy}" — must be one of: ${Object.keys(SORT_COLUMNS).join(", ")}.`,
+      },
+      { status: 400 }
+    );
+  }
+  const sortDir = (
+    searchParams.get("sortDir")?.trim() || DEFAULT_SORT_DIR
+  ).toLowerCase();
+  if (sortDir !== "asc" && sortDir !== "desc") {
+    return NextResponse.json(
+      {
+        message: `Invalid sortDir "${sortDir}" — must be "asc" or "desc".`,
+      },
+      { status: 400 }
+    );
+  }
+  const orderBy = `${SORT_COLUMNS[sortBy]} ${sortDir === "asc" ? "ASC" : "DESC"}`;
 
   interface BatchListRow extends RowDataPacket {
     id: string;
@@ -81,6 +158,21 @@ export async function GET(request: Request) {
     // (work_order_phases status = IN_PROGRESS) for this batch's work order,
     // so the collector can see which process the load is in, not just that
     // the batch is broadly "in production".
+    // Total first, so the response can tell the client whether more rows
+    // are available ("load more") without a second request.
+    const [countRows] = await db.query<CountRow[]>(
+      `SELECT COUNT(*) AS value
+       FROM fabric_batches fb
+       ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}`,
+      params
+    );
+    const total = countRows[0] ? Number(countRows[0].value ?? 0) : 0;
+
+    // limit/offset are validated whole numbers above, so inlining them in
+    // LIMIT/OFFSET is safe (mysql2 doesn't take placeholders for them well).
+    const paginationClause =
+      limit === null ? "" : `LIMIT ${limit} OFFSET ${offset}`;
+
     const [rows] = await db.query<BatchListRow[]>(
       `SELECT fb.id, fb.batch_number, fb.fabric_type, fb.quantity, fb.unit,
               fb.supplier, fb.date_received, fb.description, fb.process_notes,
@@ -95,14 +187,15 @@ export async function GET(request: Request) {
        FROM fabric_batches fb
        JOIN users u ON u.id = fb.recorded_by_id
        ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
-       ORDER BY fb.created_at DESC`,
+       ORDER BY ${orderBy}
+       ${paginationClause}`,
       params
     );
 
     // Map snake_case DB columns to the same camelCase shape the POST
     // handler returns, so the frontend works with one naming convention.
-    return NextResponse.json(
-      rows.map((row) => ({
+    return NextResponse.json({
+      items: rows.map((row) => ({
         id: row.id,
         batchNumber: row.batch_number,
         fabricType: row.fabric_type,
@@ -117,8 +210,10 @@ export async function GET(request: Request) {
         currentPhase: row.current_phase,
         createdAt: row.created_at,
         recordedByName: row.recordedByName,
-      }))
-    );
+      })),
+      total,
+      hasMore: offset + rows.length < total,
+    });
   } catch (error) {
     console.error("Failed to list fabric batches:", error);
     return NextResponse.json(
