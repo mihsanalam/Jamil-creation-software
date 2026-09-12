@@ -36,6 +36,13 @@ export interface Batch {
   status: string;
 }
 
+// One page of batches from GET /api/fabric-batches (newer envelope shape).
+export interface BatchPage {
+  items: Batch[];
+  total: number;
+  hasMore: boolean;
+}
+
 // A phase template; steps are ordered strings.
 export interface PhaseTemplate {
   id: string;
@@ -74,9 +81,9 @@ export function WorkOrderForm() {
   const [workerNames, setWorkerNames] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: batches, isLoading: batchesLoading } = useSWR<Batch[]>(
+  const { data: batchPage, isLoading: batchesLoading } = useSWR<BatchPage>(
     "/api/fabric-batches?status=PENDING",
-    fetcher<Batch[]>,
+    fetcher<BatchPage>,
     { refreshInterval: 15000 }
   );
 
@@ -197,7 +204,7 @@ export function WorkOrderForm() {
                 <CommandList>
                   <CommandEmpty>{t("No batches found.")}</CommandEmpty>
                   <CommandGroup>
-                    {(batches ?? []).map((batch) => (
+                    {(batchPage?.items ?? []).map((batch) => (
                       <CommandItem
                         key={batch.id}
                         value={`${batch.batchNumber} ${batch.fabricType} ${batch.supplier}`}

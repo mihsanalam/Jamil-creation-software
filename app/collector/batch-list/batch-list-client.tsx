@@ -4,20 +4,15 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import useSWR from "swr";
 import { Eye, Search } from "lucide-react";
+import { toast } from "sonner";
 
 import { BatchDetailDialog } from "@/app/collector/batch-list/batch-detail-dialog";
+import { DataTable, type SortDirection } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/i18n";
 
@@ -38,14 +33,49 @@ export interface FabricBatch {
   recordedByName: string;
 }
 
+// One page of batches returned by GET /api/fabric-batches.
+interface BatchPage {
+  items: FabricBatch[];
+  total: number;
+  hasMore: boolean;
+}
+
+// Rows per fetch — page 1 arrives via SWR, later pages via "Load more".
+const PAGE_SIZE = 25;
+
+// Sort keys the batch-list API accepts (a whitelist lives server-side too).
+const SORTABLE_KEYS = new Set([
+  "createdAt",
+  "batchNumber",
+  "fabricType",
+  "quantity",
+  "dateReceived",
+  "status",
+  "supplier",
+  "recordedByName",
+]);
+
 // SWR fetcher — throws on non-2xx so isLoading/error behave predictably.
-async function fetcher(url: string) {
+async function fetcher(url: string): Promise<BatchPage> {
   const response = await fetch(url);
   if (!response.ok) {
     const data = await response.json().catch(() => null);
     throw new Error(data?.message ?? "Failed to load batches");
   }
-  return response.json() as Promise<FabricBatch[]>;
+  return response.json() as Promise<BatchPage>;
+}
+
+// Combines the live first page with any "Load more" pages, keeping one row
+// per id (a row can briefly appear on both when the first page refreshes).
+function mergePages(firstPage: FabricBatch[], extra: FabricBatch[]): FabricBatch[] {
+  const seen = new Set<string>();
+  const merged: FabricBatch[] = [];
+  for (const batch of [...firstPage, ...extra]) {
+    if (seen.has(batch.id)) continue;
+    seen.add(batch.id);
+    merged.push(batch);
+  }
+  return merged;
 }
 
 const STATUS_FILTERS = [
@@ -71,6 +101,14 @@ export function BatchListClient() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [selectedBatch, setSelectedBatch] = useState<FabricBatch | null>(null);
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortDir, setSortDir] = useState<SortDirection>("desc");
+
+  // Rows already fetched beyond the first page ("Load more"). The first page
+  // always comes from SWR; these are appended to it so the 8s refresh never
+  // wipes them out.
+  const [extraItems, setExtraItems] = useState<FabricBatch[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Debounce the search box so typing doesn't fire a request per keystroke.
   useEffect(() => {
@@ -78,15 +116,72 @@ export function BatchListClient() {
     return () => clearTimeout(timeout);
   }, [searchInput]);
 
+  // Changing the filter/sort starts a fresh result set — drop extra pages.
+  function handleStatusChange(next: string) {
+    setStatus(next);
+    setExtraItems([]);
+  }
+
+  function handleSearchChange(next: string) {
+    setSearchInput(next);
+    setExtraItems([]);
+  }
+
+  function handleSortChange(key: string, dir: SortDirection) {
+    if (!SORTABLE_KEYS.has(key)) return;
+    setSortBy(key);
+    setSortDir(dir);
+    setExtraItems([]);
+  }
+
   const query = new URLSearchParams();
+  query.set("limit", String(PAGE_SIZE));
   if (status !== "all") query.set("status", status);
   if (search) query.set("search", search);
+  // Only send the sort params when they differ from the default, so SWR's
+  // cache key stays short for the common "newest first" view.
+  if (sortBy !== "createdAt" || sortDir !== "desc") {
+    query.set("sortBy", sortBy);
+    query.set("sortDir", sortDir);
+  }
 
-  const { data, error, isLoading, mutate } = useSWR<FabricBatch[]>(
+  const { data, error, isLoading, mutate } = useSWR<BatchPage>(
     `/api/fabric-batches?${query.toString()}`,
     fetcher,
     { refreshInterval: 8000, keepPreviousData: true }
   );
+
+  const visible = mergePages(data?.items ?? [], extraItems);
+  const total = data?.total ?? 0;
+  const hasMore = total > visible.length;
+
+  async function handleLoadMore() {
+    if (isLoadingMore || !data || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("limit", String(PAGE_SIZE));
+      params.set("offset", String(visible.length));
+      if (status !== "all") params.set("status", status);
+      if (search) params.set("search", search);
+      if (sortBy !== "createdAt" || sortDir !== "desc") {
+        params.set("sortBy", sortBy);
+        params.set("sortDir", sortDir);
+      }
+
+      const response = await fetch(`/api/fabric-batches?${params.toString()}`);
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        toast.error(payload?.message ?? t("Failed to load batches"));
+        return;
+      }
+      setExtraItems((current) => [...current, ...(payload.items ?? [])]);
+    } catch {
+      toast.error(t("Failed to load batches"));
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
 
   // Called by the detail dialog after a photo add/change/remove PATCH, so the
   // list (and the open dialog) reflect the change without waiting for the
@@ -96,11 +191,21 @@ export function BatchListClient() {
       current && current.id === updated.id ? { ...current, ...updated } : current
     );
     mutate(
-      (rows) =>
-        rows?.map((batch) =>
-          batch.id === updated.id ? { ...batch, ...updated } : batch
-        ),
+      (page) =>
+        page && page.items
+          ? {
+              ...page,
+              items: page.items.map((batch) =>
+                batch.id === updated.id ? { ...batch, ...updated } : batch
+              ),
+            }
+          : page,
       { revalidate: false }
+    );
+    setExtraItems((rows) =>
+      rows.map((batch) =>
+        batch.id === updated.id ? { ...batch, ...updated } : batch
+      )
     );
   }
 
@@ -117,7 +222,7 @@ export function BatchListClient() {
               <button
                 key={filter.value}
                 type="button"
-                onClick={() => setStatus(filter.value)}
+                onClick={() => handleStatusChange(filter.value)}
                 aria-pressed={status === filter.value}
                 className={cn(
                   "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
@@ -145,7 +250,7 @@ export function BatchListClient() {
               id="batch-search"
               placeholder={t("Batch number or supplier")}
               value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
+              onChange={(event) => handleSearchChange(event.target.value)}
               className="h-10 rounded-lg border-input bg-white pl-9 text-base focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
             />
           </div>
@@ -154,7 +259,7 @@ export function BatchListClient() {
 
       {/* Row count */}
       <p className="text-sm text-muted-foreground">
-        {isLoading ? t("Loading…") : `${data?.length ?? 0} ${t("batches")}`}
+        {isLoading ? t("Loading…") : `${visible.length} ${t("batches")}`}
       </p>
 
       {/* Error state */}
@@ -175,95 +280,124 @@ export function BatchListClient() {
       )}
 
       {/* Empty state */}
-      {!isLoading && !error && (data?.length ?? 0) === 0 && (
+      {!isLoading && !error && visible.length === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-white/60 px-6 py-12 text-center text-sm text-muted-foreground">
           {t("No batches recorded yet")}
         </div>
       )}
 
       {/* Data table */}
-      {!isLoading && !error && (data?.length ?? 0) > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-border bg-white shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="h-11 pl-6 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Batch number")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Fabric type")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Supplier")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Quantity")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Date received")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Recorded by")}
-                </TableHead>
-                <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Status")}
-                </TableHead>
-                <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  <span className="sr-only">{t("Actions")}</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.map((batch) => (
-                <TableRow key={batch.id} className="hover:bg-gold/6">
-                  <TableCell className="py-3.5 pl-6 font-mono text-sm font-medium text-charcoal">
-                    <div className="flex items-center gap-2.5">
-                      {batch.imageUrl && (
-                        <Image
-                          src={batch.imageUrl}
-                          alt={`Fabric photo of batch ${batch.batchNumber}`}
-                          width={36}
-                          height={36}
-                          className="size-9 shrink-0 rounded-md border border-border object-cover"
-                        />
-                      )}
-                      {batch.batchNumber}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3.5 text-charcoal">{batch.fabricType}</TableCell>
-                  <TableCell className="py-3.5 text-charcoal">{batch.supplier}</TableCell>
-                  <TableCell className="py-3.5 font-mono text-charcoal">
-                    {batch.quantity} {batch.unit}
-                  </TableCell>
-                  <TableCell className="py-3.5 text-charcoal">
-                    {formatDate(batch.dateReceived)}
-                  </TableCell>
-                  <TableCell className="py-3.5 text-charcoal">{batch.recordedByName}</TableCell>
-                  <TableCell className="py-3.5 pr-6 text-right">
-                    <div className="flex flex-col items-end gap-1">
-                      <StatusBadge status={batch.status} />
-                      {batch.status === "IN_PRODUCTION" && batch.currentPhase && (
-                        <span className="rounded-md bg-gold/15 px-1.5 py-0.5 text-[11px] font-medium text-charcoal">
-                          {t("In:")} {batch.currentPhase}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3.5 pr-6 text-right">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedBatch(batch)}
-                      aria-label={`${t("View details")} · ${batch.batchNumber}`}
-                      title={t("View details")}
-                      className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground transition-colors hover:border-gold hover:text-charcoal focus-visible:border-gold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold/20"
-                    >
-                      <Eye className="size-4" aria-hidden />
-                    </button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+      {!isLoading && !error && visible.length > 0 && (
+        <DataTable
+          columns={[
+            {
+              key: "batchNumber",
+              header: t("Batch number"),
+              sortable: true,
+              renderCell: (batch) => (
+                <div className="flex items-center gap-2.5">
+                  {batch.imageUrl && (
+                    <Image
+                      src={batch.imageUrl}
+                      alt={`Fabric photo of batch ${batch.batchNumber}`}
+                      width={36}
+                      height={36}
+                      className="size-9 shrink-0 rounded-md border border-border object-cover"
+                    />
+                  )}
+                  <span className="font-mono text-sm font-medium text-charcoal">
+                    {batch.batchNumber}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              key: "fabricType",
+              header: t("Fabric type"),
+              sortable: true,
+              cellClassName: "text-charcoal",
+            },
+            {
+              key: "supplier",
+              header: t("Supplier"),
+              sortable: true,
+              cellClassName: "text-charcoal",
+            },
+            {
+              key: "quantity",
+              header: t("Quantity"),
+              sortable: true,
+              cellClassName: "font-mono text-charcoal",
+              renderCell: (batch) => <>{batch.quantity} {batch.unit}</>,
+            },
+            {
+              key: "dateReceived",
+              header: t("Date received"),
+              sortable: true,
+              cellClassName: "text-charcoal",
+              renderCell: (batch) => formatDate(batch.dateReceived),
+            },
+            {
+              key: "recordedByName",
+              header: t("Recorded by"),
+              sortable: true,
+              cellClassName: "text-charcoal",
+            },
+            {
+              key: "status",
+              header: t("Status"),
+              align: "right",
+              sortable: true,
+              getSortValue: (batch) => batch.status,
+              renderCell: (batch) => (
+                <div className="flex flex-col items-end gap-1">
+                  <StatusBadge status={batch.status} />
+                  {batch.status === "IN_PRODUCTION" && batch.currentPhase && (
+                    <span className="rounded-md bg-gold/15 px-1.5 py-0.5 text-[11px] font-medium text-charcoal">
+                      {t("In:")} {batch.currentPhase}
+                    </span>
+                  )}
+                </div>
+              ),
+            },
+            {
+              key: "actions",
+              header: t("Actions"),
+              align: "right",
+              hideHeader: true,
+              renderCell: (batch) => (
+                <button
+                  type="button"
+                  onClick={() => setSelectedBatch(batch)}
+                  aria-label={`${t("View details")} · ${batch.batchNumber}`}
+                  title={t("View details")}
+                  className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground transition-colors hover:border-gold hover:text-charcoal focus-visible:border-gold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold/20"
+                >
+                  <Eye className="size-4" aria-hidden />
+                </button>
+              ),
+            },
+          ]}
+          rows={visible}
+          rowKey={(batch) => batch.id}
+          onSortChange={handleSortChange}
+          sortBy={sortBy}
+          sortDir={sortDir}
+        />
+      )}
+
+      {/* Load more — shown only while more pages remain */}
+      {!isLoading && !error && hasMore && (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleLoadMore}
+            disabled={isLoadingMore}
+            className="h-10 rounded-lg border border-border bg-white px-6 text-sm font-medium text-charcoal transition-colors hover:border-gold hover:bg-gold/5"
+          >
+            {isLoadingMore ? t("Loading…") : t("Load more")}
+          </Button>
         </div>
       )}
 

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/shared/data-table";
 import {
   Dialog,
   DialogContent,
@@ -18,14 +19,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -249,82 +242,85 @@ export function ClientsClient() {
 
       {/* Clients table */}
       {!isLoading && !error && (data?.length ?? 0) > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-border bg-white shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="h-11 pl-6 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Client name")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Type")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Phone")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Total purchased")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Outstanding due")}
-                </TableHead>
-                <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  <span className="sr-only">{t("Actions")}</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.map((client) => (
-                <TableRow key={client.id} className="hover:bg-gold/6">
-                  <TableCell className="py-3.5 pl-6 text-sm font-medium text-charcoal">
-                    {client.name}
-                  </TableCell>
-                  <TableCell className="py-3.5">
-                    <TypeBadge type={client.type} />
-                  </TableCell>
-                  <TableCell className="py-3.5 font-mono text-sm text-charcoal">
-                    {client.phone}
-                  </TableCell>
-                  <TableCell className="py-3.5 font-mono text-sm text-charcoal">
-                    {formatMoney(client.totalPurchased)}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "py-3.5 font-mono text-sm",
-                      client.outstandingDue > 0
-                        ? "font-semibold text-rust"
-                        : "text-muted-foreground"
-                    )}
+        <DataTable
+          columns={[
+            {
+              key: "name",
+              header: t("Client name"),
+              sortable: true,
+              cellClassName: "text-sm font-medium text-charcoal",
+            },
+            {
+              key: "type",
+              header: t("Type"),
+              sortable: true,
+              getSortValue: (client) => client.type,
+              renderCell: (client) => <TypeBadge type={client.type} />,
+            },
+            {
+              key: "phone",
+              header: t("Phone"),
+              sortable: true,
+              cellClassName: "font-mono text-sm text-charcoal",
+            },
+            {
+              key: "totalPurchased",
+              header: t("Total purchased"),
+              sortable: true,
+              getSortValue: (client) => client.totalPurchased,
+              cellClassName: "font-mono text-sm text-charcoal",
+              renderCell: (client) => formatMoney(client.totalPurchased),
+            },
+            {
+              key: "outstandingDue",
+              header: t("Outstanding due"),
+              sortable: true,
+              getSortValue: (client) => client.outstandingDue,
+              renderCell: (client) => (
+                <span
+                  className={cn(
+                    "font-mono text-sm",
+                    client.outstandingDue > 0
+                      ? "font-semibold text-rust"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {client.outstandingDue > 0
+                    ? formatMoney(client.outstandingDue)
+                    : "—"}
+                </span>
+              ),
+            },
+            {
+              key: "actions",
+              header: t("Actions"),
+              align: "right",
+              hideHeader: true,
+              renderCell: (client) => (
+                <div className="flex items-center justify-end gap-2">
+                  <Link
+                    href={`/operator/pos/due-collection?clientId=${client.id}`}
+                    aria-label={`${t("View dues")} · ${client.name}`}
+                    title={t("View dues")}
+                    className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground transition-colors hover:border-gold hover:text-charcoal focus-visible:border-gold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold/20"
                   >
-                    {client.outstandingDue > 0
-                      ? formatMoney(client.outstandingDue)
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="py-3.5 pr-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Link
-                        href={`/operator/pos/due-collection?clientId=${client.id}`}
-                        aria-label={`${t("View dues")} · ${client.name}`}
-                        title={t("View dues")}
-                        className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground transition-colors hover:border-gold hover:text-charcoal focus-visible:border-gold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold/20"
-                      >
-                        <Eye className="size-4" aria-hidden />
-                      </Link>
-                      <Link
-                        href={`/operator/pos/new-sale?client=${client.id}`}
-                        aria-label={`${t("New sale")} · ${client.name}`}
-                        title={t("New sale")}
-                        className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground transition-colors hover:border-gold hover:text-charcoal focus-visible:border-gold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold/20"
-                      >
-                        <ShoppingCart className="size-4" aria-hidden />
-                      </Link>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                    <Eye className="size-4" aria-hidden />
+                  </Link>
+                  <Link
+                    href={`/operator/pos/new-sale?client=${client.id}`}
+                    aria-label={`${t("New sale")} · ${client.name}`}
+                    title={t("New sale")}
+                    className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground transition-colors hover:border-gold hover:text-charcoal focus-visible:border-gold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gold/20"
+                  >
+                    <ShoppingCart className="size-4" aria-hidden />
+                  </Link>
+                </div>
+              ),
+            },
+          ]}
+          rows={data ?? []}
+          rowKey={(client) => client.id}
+        />
       )}
 
 

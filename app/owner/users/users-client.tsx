@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/shared/data-table";
 import {
   Dialog,
   DialogContent,
@@ -26,14 +27,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/i18n";
 
@@ -372,96 +365,98 @@ export function UsersClient() {
 
       {/* Users table */}
       {!isLoading && !error && (data?.length ?? 0) > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-border bg-white shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="h-11 pl-6 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Name")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Email")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Role")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Status")}
-                </TableHead>
-                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  {t("Date added")}
-                </TableHead>
-                <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
-                  <span className="sr-only">{t("Actions")}</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.map((user) => (
-                <TableRow key={user.id} className="hover:bg-gold/6">
-                  <TableCell className="py-3.5 pl-6 text-sm font-medium text-charcoal">
-                    {user.name}
-                  </TableCell>
-                  <TableCell className="py-3.5 text-sm text-muted-foreground">
-                    {user.email}
-                  </TableCell>
-                  <TableCell className="py-3.5">
-                    <RoleBadge role={user.role} />
-                  </TableCell>
-                  <TableCell className="py-3.5">
-                    <StatusCell status={user.status} />
-                  </TableCell>
-                  <TableCell className="py-3.5 text-sm text-muted-foreground">
-                    {formatDate(user.createdAt)}
-                  </TableCell>
-                  <TableCell className="py-3.5 pr-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEdit(user)}
-                        className="h-8 rounded-lg border border-border bg-white px-3 text-xs font-medium text-charcoal transition-colors hover:border-gold hover:bg-gold/5"
-                      >
-                        <Pencil className="size-3.5" aria-hidden />
-                        {t("Edit user")}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openReset(user)}
-                        className="h-8 rounded-lg border border-border bg-white px-3 text-xs font-medium text-charcoal transition-colors hover:border-gold hover:bg-gold/5"
-                      >
-                        <KeyRound className="size-3.5" aria-hidden />
-                        {t("Reset password")}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => toggleStatus(user)}
-                        disabled={statusBusyId === user.id}
-                        className={cn(
-                          "h-8 rounded-lg border border-border bg-white px-3 text-xs font-medium transition-colors",
-                          user.status === "ACTIVE"
-                            ? "text-rust hover:border-rust/40 hover:bg-rust/5"
-                            : "text-charcoal hover:border-green-600/40 hover:bg-green-600/5"
-                        )}
-                      >
-                        {statusBusyId === user.id
-                          ? t("Saving…")
-                          : user.status === "ACTIVE"
-                            ? t("Deactivate")
-                            : t("Activate")}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          columns={[
+            {
+              key: "name",
+              header: t("Name"),
+              sortable: true,
+              cellClassName: "text-sm font-medium text-charcoal",
+            },
+            {
+              key: "email",
+              header: t("Email"),
+              sortable: true,
+              cellClassName: "text-sm text-muted-foreground",
+            },
+            {
+              key: "role",
+              header: t("Role"),
+              sortable: true,
+              getSortValue: (user) => user.role,
+              renderCell: (user) => <RoleBadge role={user.role} />,
+            },
+            {
+              key: "status",
+              header: t("Status"),
+              sortable: true,
+              getSortValue: (user) => user.status,
+              renderCell: (user) => <StatusCell status={user.status} />,
+            },
+            {
+              key: "createdAt",
+              header: t("Date added"),
+              sortable: true,
+              getSortValue: (user) => user.createdAt,
+              renderCell: (user) => (
+                <span className="text-sm text-muted-foreground">
+                  {formatDate(user.createdAt)}
+                </span>
+              ),
+            },
+            {
+              key: "actions",
+              header: t("Actions"),
+              align: "right",
+              hideHeader: true,
+              renderCell: (user) => (
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openEdit(user)}
+                    className="h-8 rounded-lg border border-border bg-white px-3 text-xs font-medium text-charcoal transition-colors hover:border-gold hover:bg-gold/5"
+                  >
+                    <Pencil className="size-3.5" aria-hidden />
+                    {t("Edit user")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openReset(user)}
+                    className="h-8 rounded-lg border border-border bg-white px-3 text-xs font-medium text-charcoal transition-colors hover:border-gold hover:bg-gold/5"
+                  >
+                    <KeyRound className="size-3.5" aria-hidden />
+                    {t("Reset password")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleStatus(user)}
+                    disabled={statusBusyId === user.id}
+                    className={cn(
+                      "h-8 rounded-lg border border-border bg-white px-3 text-xs font-medium transition-colors",
+                      user.status === "ACTIVE"
+                        ? "text-rust hover:border-rust/40 hover:bg-rust/5"
+                        : "text-charcoal hover:border-green-600/40 hover:bg-green-600/5"
+                    )}
+                  >
+                    {statusBusyId === user.id
+                      ? t("Saving…")
+                      : user.status === "ACTIVE"
+                        ? t("Deactivate")
+                        : t("Activate")}
+                  </Button>
+                </div>
+              ),
+            },
+          ]}
+          rows={data ?? []}
+          rowKey={(user) => user.id}
+        />
       )}
 
       {/* Add user dialog */}
