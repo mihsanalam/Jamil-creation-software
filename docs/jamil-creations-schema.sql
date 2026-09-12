@@ -220,3 +220,16 @@ CREATE TABLE return_exchanges (
   FOREIGN KEY (return_batch_id) REFERENCES return_batches(id) ON DELETE CASCADE,
   FOREIGN KEY (finished_product_id) REFERENCES finished_products(id)
 );
+
+-- ============================================
+-- APP SETTINGS (Tier 1 — Owner-configurable values)
+-- Key/value pairs written by the Owner screens.
+-- ============================================
+
+CREATE TABLE app_settings (
+  setting_key     VARCHAR(100) PRIMARY KEY,
+  setting_value   TEXT NOT NULL,
+  updated_by_id   VARCHAR(36) NOT NULL,
+  updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (updated_by_id) REFERENCES users(id)
+);

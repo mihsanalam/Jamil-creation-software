@@ -13,11 +13,15 @@ An internal management system for a garments business, built with Next.js (App R
 | 5 | **Fabric Intake (Collector)** — `/collector/fabric-intake`: record incoming fabric batches (fabric type, quantity + meters/kg unit, supplier, date received, description, process notes). No-scroll single-screen form in the brand look (charcoal / gold / cream) | ✅ **Done** |
 | 6 | **Fabric Batches API** — `/api/fabric-batches`: `POST` creates a batch with an auto-generated sequential batch number (`FB-YYYY-####`, zero-padded). Uniqueness is guaranteed by the DB's UNIQUE index + a row lock (`SELECT ... FOR UPDATE`) inside a transaction, with automatic retry on any race; status defaults to `PENDING`, and the recording user comes from the session. `GET` lists batches newest-first with optional `status` and `search` (batch number or supplier) filters | ✅ **Done** |
 | 7 | **Batch List (Collector)** — `/collector/batch-list`: live table of all batches (SWR polling every 8s), status pills + debounced supplier/batch-number search, skeleton loading & empty states, row count, gold "+ Record fabric" shortcut, and a detail modal per row showing every field of the batch | ✅ **Done** |
-| 8+ | Remaining screens (Phase Board, POS, Reports, Users management, …) | 🚧 In progress |
+| 8 | Phase Board, Work Orders, POS (new sale / return+exchange / clients / due collection / invoice printing), batch traceability, Sales & Dues, Users — shipped after the initial milestone | ✅ **Done** |
+| 9 | **Tier 1 updates** — `/api/phases` + `/api/products` (were 501 stubs), shared sortable `DataTable` component (used by Batch List, Users, Clients), server-side pagination + "Load more" on the Batch List, `app_settings` table + Owner-configurable bottleneck threshold via Dashboard → Settings | ✅ **Done** |
+| 10+ | Next tiers (cost/margin tracking, WhatsApp dues reminders, audit trail, backups, tests/CI, …) | 🚧 Planned |
 
 > **Auth system is ready:** users can log in at `/login`, sessions persist across refreshes, each role is redirected to its own home screen after sign-in, and `/owner`, `/collector`, `/operator` routes are protected so only the matching role can access them.
 >
 > **API note:** Next.js middleware skips `/api/*`, so every route handler verifies the session itself via `auth()` from `auth.ts` before touching the database.
+>
+> **Updating an existing database?** If you already created the database from the original schema, run `docs/tier1-updates.sql` once to add the `app_settings` table (used for the bottleneck threshold). Fresh installs get it from `docs/jamil-creations-schema.sql`.
 
 ## Getting Started
 

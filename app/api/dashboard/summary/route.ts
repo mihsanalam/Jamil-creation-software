@@ -51,10 +51,34 @@ async function scalar(sql: string): Promise<number> {
   return typeof row.value === "number" ? row.value : Number(row.value ?? 0);
 }
 
-// NOTE (placeholder): the pipeline bottleneck threshold. A phase is only
-// flagged as a bottleneck once more than this many batches sit in it. Tune
-// here later once real staffing numbers are known.
-const BOTTLENECK_THRESHOLD = 8;
+// Default bottleneck alert threshold, used until the Owner customises it via
+// the dashboard Settings dialog (stored in the app_settings table). A phase
+// is flagged as a bottleneck once more than this many batches sit in it.
+const DEFAULT_BOTTLENECK_THRESHOLD = 8;
+
+// A settings row (stored as text, parsed here).
+interface SettingRow extends RowDataPacket {
+  setting_value: string | null;
+}
+
+// Reads the Owner-configured threshold from app_settings. Falls back to the
+// default when unset, invalid, or when the settings table doesn't exist yet
+// (older databases that haven't run the migration) — the dashboard must
+// never break because of a missing settings row.
+async function readBottleneckThreshold(): Promise<number> {
+  try {
+    const [rows] = await db.query<SettingRow[]>(
+      `SELECT setting_value FROM app_settings
+       WHERE setting_key = 'bottleneck_threshold' LIMIT 1`
+    );
+    const threshold = Number(rows[0]?.setting_value ?? "");
+    return Number.isInteger(threshold) && threshold >= 1 && threshold <= 100
+      ? threshold
+      : DEFAULT_BOTTLENECK_THRESHOLD;
+  } catch {
+    return DEFAULT_BOTTLENECK_THRESHOLD;
+  }
+}
 
 /**
  * GET /api/dashboard/summary — the Owner dashboard's single-shot data feed.
@@ -66,6 +90,9 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
+
+  // Read once per request — the settings lookup is a single cheap PK query.
+  const bottleneckThreshold = await readBottleneckThreshold();
 
   try {
     const [
@@ -174,10 +201,13 @@ export async function GET() {
     }
 
     // The phase with the most in-progress batches, if it exceeds the
-    // threshold (placeholder — see BOTTLENECK_THRESHOLD).
+    // Owner's configured threshold (see readBottleneckThreshold).
     let bottleneck: { name: string; count: number } | null = null;
     for (const [name, count] of Object.entries(phaseBreakdown)) {
-      if (count > BOTTLENECK_THRESHOLD && (!bottleneck || count > bottleneck.count)) {
+      if (
+        count > bottleneckThreshold &&
+        (!bottleneck || count > bottleneck.count)
+      ) {
         bottleneck = { name, count };
       }
     }
@@ -189,6 +219,7 @@ export async function GET() {
       outstandingDues,
       phaseBreakdown,
       bottleneck,
+      bottleneckThreshold,
       recentSales: recentSales[0].map((row) => ({
         invoiceNumber: row.invoice_number,
         clientName: row.client_name,

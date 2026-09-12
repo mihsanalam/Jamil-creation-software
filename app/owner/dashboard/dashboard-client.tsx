@@ -1,24 +1,38 @@
 "use client";
 
+import { useState, type FormEvent } from "react";
 import useSWR from "swr";
 import {
   Layers,
   Package,
   RotateCcw,
+  Settings,
   ShoppingCart,
   TriangleAlert,
   Wallet,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { MetricCard } from "@/components/shared/metric-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -39,6 +53,7 @@ interface DashboardSummary {
   outstandingDues: number;
   phaseBreakdown: Record<string, number>;
   bottleneck: { name: string; count: number } | null;
+  bottleneckThreshold: number;
   recentSales: {
     invoiceNumber: string;
     clientName: string;
@@ -93,11 +108,57 @@ function formatToday() {
 export function DashboardClient() {
   const { t } = useLanguage();
   // The Owner keeps this screen open — poll every 10s so it feels live.
-  const { data, error, isLoading } = useSWR<DashboardSummary>(
+  const { data, error, isLoading, mutate } = useSWR<DashboardSummary>(
     "/api/dashboard/summary",
     fetcher<DashboardSummary>,
     { refreshInterval: 10000, keepPreviousData: true }
   );
+
+  // Settings dialog — edits the bottleneck alert threshold (see /api/settings).
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInput, setSettingsInput] = useState("");
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // Pre-fill the input from the last known summary value.
+  function openSettings() {
+    setSettingsInput(String(data?.bottleneckThreshold ?? 8));
+    setSettingsOpen(true);
+  }
+
+  async function handleSaveThreshold(event: FormEvent) {
+    event.preventDefault();
+    const value = Number(settingsInput);
+    if (!Number.isInteger(value) || value < 1 || value > 100) {
+      toast.error(
+        t("Flag a phase as a bottleneck when more than this many batches wait in it (1–100).")
+      );
+      return;
+    }
+
+    setIsSavingSettings(true);
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bottleneckThreshold: value }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        toast.error(
+          payload?.message ?? t("Could not save the threshold. Please try again.")
+        );
+        return;
+      }
+      toast.success(t("Threshold saved"));
+      setSettingsOpen(false);
+      // Refresh the summary so the pipeline banner reacts to the new value.
+      mutate();
+    } catch {
+      toast.error(t("Could not save the threshold. Please try again."));
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }
 
   const phaseBreakdown = data?.phaseBreakdown ?? {};
   const phases = Object.entries(phaseBreakdown).sort((a, b) => b[1] - a[1]);
@@ -192,6 +253,16 @@ export function DashboardClient() {
           <h2 className="font-heading text-lg font-medium text-charcoal">
             {t("Production pipeline")}
           </h2>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={openSettings}
+            className="h-9 rounded-lg border border-border bg-white px-3 text-xs font-medium text-charcoal transition-colors hover:border-gold hover:bg-gold/5"
+          >
+            <Settings className="size-4" aria-hidden />
+            {t("Settings")}
+          </Button>
         </div>
 
         {isLoading ? (
@@ -420,6 +491,67 @@ export function DashboardClient() {
             )}
         </CardContent>
       </Card>
+
+      {/* Settings dialog — Owner-adjustable bottleneck alert threshold */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-w-md gap-0 rounded-xl p-0 ring-border sm:max-w-md">
+          <div className="border-b border-border bg-cream px-6 py-4">
+            <DialogHeader className="gap-1 text-left">
+              <DialogTitle className="text-base font-semibold text-charcoal">
+                {t("Settings")}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                {t("Flag a phase as a bottleneck when more than this many batches wait in it (1–100).")}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <form onSubmit={handleSaveThreshold}>
+            <div className="space-y-4 px-6 py-5">
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="bottleneck-threshold"
+                  className="text-sm font-semibold text-charcoal"
+                >
+                  {t("Alert threshold")}
+                </Label>
+                <Input
+                  id="bottleneck-threshold"
+                  type="number"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={settingsInput}
+                  onChange={(event) => setSettingsInput(event.target.value)}
+                  placeholder="8"
+                  required
+                  autoFocus
+                  className="h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-3 border-t border-border bg-cream/60 px-6 py-3.5 sm:justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setSettingsOpen(false)}
+                disabled={isSavingSettings}
+                className="h-9 rounded-lg text-sm font-medium text-muted-foreground hover:text-charcoal"
+              >
+                {t("Cancel")}
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSavingSettings}
+                className="h-9 rounded-lg bg-charcoal px-6 text-sm font-semibold text-cream shadow-sm transition-all hover:bg-charcoal/85 active:scale-[0.99] disabled:opacity-50"
+              >
+                {isSavingSettings ? t("Saving…") : t("Save threshold")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

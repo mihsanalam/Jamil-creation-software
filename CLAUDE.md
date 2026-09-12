@@ -23,15 +23,20 @@
 ## Roles
 Three user roles: OWNER, COLLECTOR, OPERATOR — see users.role column
 
-## Status (updated after auth milestone)
+## Status (updated after Tier 1)
 - **Auth & Roles: DONE** — `/login`, NextAuth credentials + JWT sessions,
   role-based route protection in `middleware.ts` (Node runtime) mapping
   `/owner` → OWNER, `/collector` → COLLECTOR, `/operator` → OPERATOR.
   Server pages re-check with helpers in `lib/auth-helpers.ts`.
 - Role home routes live in `lib/roles.ts` (`ROLE_HOME`).
-- Screens/APIs beyond auth are not built yet; the files under
-  `app/api/*` and `app/operator/pos/*` are intentional placeholders
-  ("coming soon" / 501) until each feature gets implemented.
+- **Tier 1 (shipped):** `/api/phases` + `/api/products` are implemented
+  (were 501 stubs); shared `components/shared/data-table.tsx` is a real
+  sortable table used by Batch List, Users and Clients; the Batch List API
+  supports server-side pagination (`limit`/`offset`) + sorting and the
+  collector screen has "Load more"; `app_settings` table + `/api/settings`
+  make the dashboard bottleneck threshold Owner-configurable (see
+  `docs/tier1-updates.sql` for existing databases).
+- The full feature status lives in the README feature table.
 
 ## UI Rule — Sidebar
 

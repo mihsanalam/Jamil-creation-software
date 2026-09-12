@@ -87,6 +87,19 @@ const BN: Record<string, string> = {
   day: "দিন",
   days: "দিন",
 
+  // ── Shared data table & settings (Tier 1) ────────────────────────────
+  "Load more": "আরও লোড করুন",
+  "Sort by": "সাজান",
+  "sorted ascending": "উর্ধ্বক্রমে সাজানো",
+  "sorted descending": "অধঃক্রমে সাজানো",
+  Settings: "সেটিংস",
+  "Alert threshold": "সতর্কতা সীমা",
+  "Flag a phase as a bottleneck when more than this many batches wait in it (1–100).":
+    "একটি ফেজে এর চেয়ে বেশি ব্যাচ অপেক্ষায় থাকলে সেটিকে বাধা (bottleneck) হিসেবে চিহ্নিত করুন (১–১০০)।",
+  "Save threshold": "সীমা সংরক্ষণ করুন",
+  "Threshold saved": "সীমা সংরক্ষিত হয়েছে",
+  "Could not save the threshold. Please try again.": "সীমা সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+
   // ── Fabric intake (Collector) ────────────────────────────────────────
   "Record fabric in.": "কাপড় আসা রেকর্ড করুন।",
   "Batch number": "ব্যাচ নম্বর",
