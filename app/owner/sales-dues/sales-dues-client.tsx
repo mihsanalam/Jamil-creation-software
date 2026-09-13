@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { MetricCard } from "@/components/shared/metric-card";
+import { ClientStatementDialog } from "@/app/owner/sales-dues/client-statement-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { useLanguage } from "@/lib/i18n";
@@ -228,6 +229,8 @@ export default function SalesDuesClient() {
   // "all" is the default so the trend line always has enough points to draw
   // a meaningful line (a month with one sale day renders as a single dot).
   const [range, setRange] = useState("all");
+  // Which client's statement/ledger dialog is open (null = closed).
+  const [statementClientId, setStatementClientId] = useState<string | null>(null);
 
   const {
     data: report,
@@ -424,7 +427,13 @@ export default function SalesDuesClient() {
                 <TableCell className="font-mono text-right">{formatCurrency(client.totalDue)}</TableCell>
                 <TableCell>{client.lastPaymentDate ? formatDate(client.lastPaymentDate) : "—"}</TableCell>
                 <TableCell className="text-center">
-                  <Button variant="outline" size="sm" disabled>{t("Contact")}</Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStatementClientId(client.id)}
+                  >
+                    {t("Statement")}
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -677,8 +686,14 @@ export default function SalesDuesClient() {
                 {renderAgingTab()}
               </TabsContent>
             </Tabs>
-          </div>
+      </div>
         </main>
+
+      {/* Per-client statement/ledger dialog (opened from the dues table) */}
+      <ClientStatementDialog
+        clientId={statementClientId}
+        onOpenChange={(open) => !open && setStatementClientId(null)}
+      />
     </div>
   );
 }
