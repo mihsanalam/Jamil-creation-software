@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Calendar,
+  Download,
   Layers,
   Package,
   TrendingUp,
@@ -135,6 +136,35 @@ export function AnalyticsClient() {
     { refreshInterval: 30000, keepPreviousData: true }
   );
 
+  // Download the sales CSV for the currently selected date range.
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  async function handleExport() {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const exportParams = new URLSearchParams({ type: "sales" });
+      if (start) exportParams.set("start", start);
+      if (end) exportParams.set("end", end);
+      const res = await fetch(`/api/export?${exportParams.toString()}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message ?? "Export failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sales_${start || "all"}_to_${end || "today"}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header with date range */}
@@ -169,8 +199,18 @@ export function AnalyticsClient() {
           >
             {t("Reset")}
           </Button>
+          <Button size="sm" onClick={handleExport} disabled={exporting}>
+            <Download className="size-4" aria-hidden />
+            {exporting ? t("Exporting…") : t("Export CSV")}
+          </Button>
         </div>
       </div>
+
+      {exportError && (
+        <div className="rounded-lg border border-rust/20 bg-rust/5 p-4 text-sm text-rust">
+          {exportError}
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg border border-rust/20 bg-rust/5 p-4 text-sm text-rust">
