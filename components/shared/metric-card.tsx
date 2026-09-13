@@ -14,6 +14,8 @@ interface MetricCardProps {
   icon: LucideIcon;
   /** Accent — "rust" tints the icon box and value (used for Outstanding dues) */
   variant?: "default" | "rust";
+  /** Optional extra node rendered inline after the value (e.g. a trend badge) */
+  extra?: React.ReactNode;
 }
 
 /**
@@ -27,6 +29,7 @@ export function MetricCard({
   description,
   icon: Icon,
   variant = "default",
+  extra,
 }: MetricCardProps) {
   return (
     <Card className="bg-white">
@@ -45,11 +48,12 @@ export function MetricCard({
           <span className="truncate text-sm text-muted-foreground">{label}</span>
           <span
             className={cn(
-              "font-heading text-2xl font-semibold",
+              "flex items-center font-heading text-2xl font-semibold",
               variant === "rust" ? "text-rust" : "text-charcoal"
             )}
           >
             {value}
+            {extra}
           </span>
           {description && (
             <span className="truncate text-xs text-muted-foreground">

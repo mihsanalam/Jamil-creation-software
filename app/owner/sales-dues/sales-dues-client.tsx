@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
-import { FileText, Users, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, FileText, Users, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
 import useSWR from "swr";
 import {
   LineChart as RechartsLineChart,
@@ -68,6 +68,14 @@ interface SalesReport {
     totalDue: number;
     lastPaymentDate: string | null;
   }[];
+  comparison: {
+    totalSalesChange: number | null;
+    retailSalesChange: number | null;
+    wholesaleSalesChange: number | null;
+    previousTotalSales: number;
+    previousRetailSales: number;
+    previousWholesaleSales: number;
+  } | null;
 }
 
 const RANGE_OPTIONS = [
@@ -173,9 +181,10 @@ export default function SalesDuesClient() {
   const renderMetric = (
     label: string,
     value: string,
-        icon: LucideIcon,
+    icon: LucideIcon,
     variant: "default" | "rust" = "default",
-    description?: string
+    description?: string,
+    extra?: React.ReactNode
   ) => (
     <MetricCard
       label={label}
@@ -183,6 +192,7 @@ export default function SalesDuesClient() {
       icon={icon}
       variant={variant}
       description={description}
+      extra={extra}
     />
   );
 
@@ -224,6 +234,32 @@ export default function SalesDuesClient() {
 
   function formatCurrency(amount: number) {
     return "৳ " + amount.toLocaleString("en-BD", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  /**
+   * Trend badge showing period-over-period percentage change.
+   * Renders a green up-arrow for positive, red down-arrow for negative.
+   * Returns null when there is no comparison data.
+   */
+  function TrendBadge({ change }: { change: number | null }) {
+    if (change === null || change === 0) return null;
+    const isPositive = change > 0;
+    return (
+      <span
+        className={`ml-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+          isPositive
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-red-50 text-red-700"
+        }`}
+      >
+        {isPositive ? (
+          <ArrowUpRight className="size-3" />
+        ) : (
+          <ArrowDownRight className="size-3" />
+        )}
+        {Math.abs(change)}%
+      </span>
+    );
   }
 
   const EmptyState = ({ message }: { message: string }) => (
@@ -367,22 +403,37 @@ export default function SalesDuesClient() {
               </div>
             )}
 
-            {/* Metric cards */}
+            {/* Metric cards with period comparison badges */}
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {renderMetric(
                 t("Total sales"),
                 isLoading ? "—" : formatCurrency(report?.totalSales ?? 0),
-                TrendingUp
+                TrendingUp,
+                "default",
+                undefined,
+                !isLoading && report?.comparison ? (
+                  <TrendBadge change={report.comparison.totalSalesChange} />
+                ) : undefined
               )}
               {renderMetric(
                 t("Retail sales"),
                 isLoading ? "—" : formatCurrency(report?.retailSales ?? 0),
-                FileText
+                FileText,
+                "default",
+                undefined,
+                !isLoading && report?.comparison ? (
+                  <TrendBadge change={report.comparison.retailSalesChange} />
+                ) : undefined
               )}
               {renderMetric(
                 t("Wholesale sales"),
                 isLoading ? "—" : formatCurrency(report?.wholesaleSales ?? 0),
-                Users
+                Users,
+                "default",
+                undefined,
+                !isLoading && report?.comparison ? (
+                  <TrendBadge change={report.comparison.wholesaleSalesChange} />
+                ) : undefined
               )}
               {renderMetric(
                 t("Outstanding dues"),
