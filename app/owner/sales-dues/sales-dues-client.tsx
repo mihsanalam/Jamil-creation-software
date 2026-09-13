@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDownRight, ArrowUpRight, FileText, Users, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Download, FileText, Users, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
 import useSWR from "swr";
 import {
   LineChart as RechartsLineChart,
@@ -177,6 +177,25 @@ export default function SalesDuesClient() {
     fetcher,
     { refreshInterval: 60000, dedupingInterval: 5000, keepPreviousData: true }
   );
+
+  // Triggers a CSV download via the /api/export endpoint.
+  const handleExport = (type: "sales" | "dues") => {
+    const params = new URLSearchParams({ type });
+    // Map the range selector to start/end dates for the export.
+    const now = new Date();
+    if (range === "this_month") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+      params.set("start", start);
+      params.set("end", end);
+    } else if (range === "last_month") {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+      params.set("start", start);
+      params.set("end", end);
+    }
+    window.open(`/api/export?${params.toString()}`, "_blank");
+  };
 
   const renderMetric = (
     label: string,
@@ -382,18 +401,38 @@ export default function SalesDuesClient() {
                 </p>
               </div>
 
-                            <Select value={range} onValueChange={(value) => setRange(value ?? "this_month")}>
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder={t("Select range")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {RANGE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {t(opt.label)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select value={range} onValueChange={(value) => setRange(value ?? "this_month")}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder={t("Select range")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RANGE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {t(opt.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExport("sales")}
+                  title={t("Export sales as CSV")}
+                >
+                  <Download className="size-3.5" />
+                  <span className="hidden sm:inline">{t("Export sales")}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExport("dues")}
+                  title={t("Export dues as CSV")}
+                >
+                  <Download className="size-3.5" />
+                  <span className="hidden sm:inline">{t("Export dues")}</span>
+                </Button>
+              </div>
             </div>
 
             {/* Error banner */}
