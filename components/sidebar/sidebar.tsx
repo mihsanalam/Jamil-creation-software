@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  BarChart3,
   Boxes,
   ClipboardList,
   LayoutDashboard,
@@ -41,6 +42,7 @@ const NAV_BY_ROLE: Record<UserRole, { subtitle: string; items: NavItem[] }> = {
     subtitle: "Owner Console",
     items: [
       { label: "Dashboard", href: "/owner/dashboard", key: "dashboard", icon: LayoutDashboard },
+      { label: "Analytics", href: "/owner/analytics", key: "analytics", icon: BarChart3 },
       { label: "Phase Templates", href: "/owner/phase-templates", key: "phase-templates", icon: ClipboardList },
       { label: "Reports", href: "/owner/reports", key: "reports", icon: ReceiptText },
       { label: "Sales & Dues", href: "/owner/sales-dues", key: "sales-dues", icon: Wallet },
