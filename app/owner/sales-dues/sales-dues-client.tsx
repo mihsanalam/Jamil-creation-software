@@ -84,11 +84,45 @@ const RANGE_OPTIONS = [
   { value: "all", label: "All time" },
 ] as const;
 
+/** One client row of the dues aging report (GET /api/dues-aging). */
+interface AgingClient {
+  id: string;
+  name: string;
+  phone: string;
+  type: "RETAIL" | "WHOLESALE";
+  totalDue: number;
+  invoiceCount: number;
+  bucket: "0-15" | "16-30" | "31-60" | "60+";
+  oldestInvoice: { invoiceNumber: string; date: string; days: number };
+}
+
+interface AgingReport {
+  totalDue: number;
+  buckets: Record<AgingClient["bucket"], { total: number; clients: number }>;
+  clients: AgingClient[];
+}
+
+const AGING_BUCKETS: { key: AgingClient["bucket"]; label: string; tone: string }[] = [
+  { key: "0-15", label: "0–15 days", tone: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  { key: "16-30", label: "16–30 days", tone: "bg-amber-50 text-amber-700 border-amber-200" },
+  { key: "31-60", label: "31–60 days", tone: "bg-orange-50 text-orange-700 border-orange-200" },
+  { key: "60+", label: "60+ days", tone: "bg-red-50 text-red-700 border-red-200" },
+];
+
 async function fetcher(url: string): Promise<SalesReport> {
   const res = await fetch(url);
   if (!res.ok) {
     const { message } = await res.json().catch(() => ({}));
     throw new Error(message || "Failed to load the sales report");
+  }
+  return res.json();
+}
+
+async function agingFetcher(url: string): Promise<AgingReport> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const { message } = await res.json().catch(() => ({}));
+    throw new Error(message || "Failed to load the dues aging report");
   }
   return res.json();
 }
@@ -162,6 +196,33 @@ function SalesTrendChart({ data }: { data: SalesReport["salesTrend"] }) {
   );
 }
 
+/**
+ * Trend badge showing period-over-period percentage change.
+ * Renders a green up-arrow for positive, red down-arrow for negative.
+ * Returns null when there is no comparison data.
+ * Declared at module scope so React doesn't recreate it every render.
+ */
+function TrendBadge({ change }: { change: number | null }) {
+  if (change === null || change === 0) return null;
+  const isPositive = change > 0;
+  return (
+    <span
+      className={`ml-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+        isPositive
+          ? "bg-emerald-50 text-emerald-700"
+          : "bg-red-50 text-red-700"
+      }`}
+    >
+      {isPositive ? (
+        <ArrowUpRight className="size-3" />
+      ) : (
+        <ArrowDownRight className="size-3" />
+      )}
+      {Math.abs(change)}%
+    </span>
+  );
+}
+
 export default function SalesDuesClient() {
   const { t } = useLanguage();
   // "all" is the default so the trend line always has enough points to draw
@@ -177,6 +238,17 @@ export default function SalesDuesClient() {
     fetcher,
     { refreshInterval: 60000, dedupingInterval: 5000, keepPreviousData: true }
   );
+
+  // Dues aging (0-15/16-30/31-60/60+ days) — independent of the range picker
+  // because aging is about the age of unpaid invoices, not the sale window.
+  const {
+    data: aging,
+    error: agingError,
+    isLoading: agingLoading,
+  } = useSWR<AgingReport>("/api/dues-aging", agingFetcher, {
+    refreshInterval: 60000,
+    keepPreviousData: true,
+  });
 
   // Triggers a CSV download via the /api/export endpoint.
   const handleExport = (type: "sales" | "dues") => {
@@ -260,26 +332,6 @@ export default function SalesDuesClient() {
    * Renders a green up-arrow for positive, red down-arrow for negative.
    * Returns null when there is no comparison data.
    */
-  function TrendBadge({ change }: { change: number | null }) {
-    if (change === null || change === 0) return null;
-    const isPositive = change > 0;
-    return (
-      <span
-        className={`ml-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-          isPositive
-            ? "bg-emerald-50 text-emerald-700"
-            : "bg-red-50 text-red-700"
-        }`}
-      >
-        {isPositive ? (
-          <ArrowUpRight className="size-3" />
-        ) : (
-          <ArrowDownRight className="size-3" />
-        )}
-        {Math.abs(change)}%
-      </span>
-    );
-  }
 
   const EmptyState = ({ message }: { message: string }) => (
     <div className="py-10 text-center text-sm text-muted-foreground">
@@ -378,6 +430,101 @@ export default function SalesDuesClient() {
             ))}
           </TableBody>
         </Table>
+      </div>
+    );
+  }
+
+  /**
+   * Dues aging tab: bucket summary cards (0-15/16-30/31-60/60+ days) plus a
+   * per-client table ordered worst-first, so the owner knows who to chase.
+   */
+  function renderAgingTab() {
+    if (agingError)
+      return <EmptyState message={t("Could not load the dues aging report.")} />;
+    if (agingLoading) {
+      return (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      );
+    }
+    const clients = aging?.clients ?? [];
+    if (clients.length === 0)
+      return <EmptyState message={t("No outstanding dues right now.")} />;
+
+    return (
+      <div className="space-y-6">
+        {/* Bucket summary */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {AGING_BUCKETS.map(({ key, label, tone }) => {
+            const bucket = aging?.buckets?.[key];
+            return (
+              <div
+                key={key}
+                className={`rounded-lg border p-4 ${tone}`}
+              >
+                <div className="text-xs font-semibold uppercase tracking-wide">
+                  {t(label)}
+                </div>
+                <div className="mt-1 font-heading text-xl font-semibold">
+                  {formatCurrency(bucket?.total ?? 0)}
+                </div>
+                <div className="mt-0.5 text-xs opacity-80">
+                  {bucket?.clients ?? 0} {t("client(s)")}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Per-client breakdown, worst bucket first */}
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("Client")}</TableHead>
+                <TableHead>{t("Type")}</TableHead>
+                <TableHead className="text-center">{t("Invoices")}</TableHead>
+                <TableHead className="text-right">{t("Total owed")}</TableHead>
+                <TableHead>{t("Oldest invoice")}</TableHead>
+                <TableHead>{t("Age")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {clients.map((client) => {
+                const tone =
+                  AGING_BUCKETS.find((b) => b.key === client.bucket)?.tone ??
+                  "bg-charcoal/10 text-charcoal";
+                return (
+                  <TableRow key={client.id}>
+                    <TableCell>
+                      <div className="font-medium">{client.name}</div>
+                      <div className="text-sm text-muted-foreground">{client.phone}</div>
+                    </TableCell>
+                    <TableCell><ClientTypeBadge type={client.type} /></TableCell>
+                    <TableCell className="text-center">{client.invoiceCount}</TableCell>
+                    <TableCell className="font-mono text-right">
+                      {formatCurrency(client.totalDue)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-mono text-xs">{client.oldestInvoice.invoiceNumber}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {formatDate(client.oldestInvoice.date)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={`border ${tone}`}>
+                        {client.oldestInvoice.days} {t("days")}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   }
@@ -511,6 +658,7 @@ export default function SalesDuesClient() {
                 <TabsTrigger value="clients-with-dues">
                   {t("Clients with dues")}
                 </TabsTrigger>
+                <TabsTrigger value="dues-aging">{t("Dues aging")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="all-sales" className="mt-4">
@@ -523,6 +671,10 @@ export default function SalesDuesClient() {
                   report?.clientsWithDues ?? [],
                   error
                 )}
+              </TabsContent>
+
+              <TabsContent value="dues-aging" className="mt-4">
+                {renderAgingTab()}
               </TabsContent>
             </Tabs>
           </div>
