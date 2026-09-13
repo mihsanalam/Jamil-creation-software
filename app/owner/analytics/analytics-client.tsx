@@ -75,6 +75,33 @@ interface AnalyticsData {
   } | null;
 }
 
+// Sale-intelligence payload from GET /api/sale-analytics
+interface SaleAnalyticsData {
+  period: { start: string; end: string };
+  discounts: {
+    totalDiscount: number;
+    totalSalesValue: number;
+    avgDiscountPct: number;
+    salesWithDiscount: number;
+    salesCount: number;
+    discountHeavyDays: { day: string; discount: number; total: number }[];
+    topDiscountedSales: {
+      id: string;
+      invoiceNumber: string;
+      discount: number;
+      total: number;
+      date: string;
+    }[];
+  };
+  paymentMix: {
+    method: "CASH" | "BKASH" | "NAGAD" | "BANK_TRANSFER";
+    count: number;
+    amount: number;
+    sharePct: number;
+  }[];
+  bestSellers: { productType: string; pcsSold: number; revenue: number }[];
+}
+
 async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) {
@@ -120,6 +147,204 @@ function TrendIndicator({ change }: { change: number | null }) {
   );
 }
 
+/** Method display names for the payment mix. */
+const METHOD_LABELS: Record<string, string> = {
+  CASH: "Cash",
+  BKASH: "bKash",
+  NAGAD: "Nagad",
+  BANK_TRANSFER: "Bank transfer",
+};
+
+const METHOD_COLORS: Record<string, string> = {
+  CASH: "bg-emerald-500",
+  BKASH: "bg-pink-500",
+  NAGAD: "bg-orange-500",
+  BANK_TRANSFER: "bg-blue-500",
+};
+
+/**
+ * "Discounts & mix" tab: how much margin was given away in discounts, how
+ * clients pay (bKash vs cash vs ...), and which product types sell best.
+ */
+function SaleIntelTab({
+  data,
+  error,
+  isLoading,
+}: {
+  data: SaleAnalyticsData | undefined;
+  error: Error | undefined;
+  isLoading: boolean;
+}) {
+  const { t } = useLanguage();
+
+  if (error) {
+    return (
+      <Card className="bg-white">
+        <CardContent className="py-8 text-center text-sm text-rust">
+          {error.message}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const discounts = data?.discounts;
+  const paymentMix = data?.paymentMix ?? [];
+  const bestSellers = data?.bestSellers ?? [];
+
+  return (
+    <div className="space-y-4">
+      {/* Discount summary cards */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="bg-white">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">{t("Total discounts given")}</p>
+            <p className="font-heading text-2xl font-semibold text-rust">
+              {isLoading ? "—" : formatMoney(discounts?.totalDiscount ?? 0)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isLoading ? "" : `${discounts?.avgDiscountPct ?? 0}% ${t("of pre-discount value")}`}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-white">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">{t("Invoices discounted")}</p>
+            <p className="font-heading text-2xl font-semibold text-charcoal">
+              {isLoading ? "—" : `${discounts?.salesWithDiscount ?? 0}/${discounts?.salesCount ?? 0}`}
+            </p>
+            <p className="text-xs text-muted-foreground">{t("sales with a discount applied")}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-white">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">{t("Net revenue (after discounts)")}</p>
+            <p className="font-heading text-2xl font-semibold text-charcoal">
+              {isLoading ? "—" : formatMoney(discounts?.totalSalesValue ?? 0)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isLoading
+                ? ""
+                : `${t("before discounts")}: ${formatMoney(
+                    (discounts?.totalSalesValue ?? 0) + (discounts?.totalDiscount ?? 0)
+                  )}`}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Payment method mix */}
+        <Card className="bg-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{t("Payment method mix")}</CardTitle>
+            <CardDescription>
+              {t("How the period's revenue was collected.")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {isLoading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : paymentMix.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("No sales in this period.")}</p>
+            ) : (
+              paymentMix.map((mix) => (
+                <div key={mix.method}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {t(METHOD_LABELS[mix.method] ?? mix.method)} · {mix.count}
+                    </span>
+                    <span className="font-mono text-xs">
+                      {formatMoney(mix.amount)} ({mix.sharePct}%)
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-charcoal/10">
+                    <div
+                      className={`h-full rounded-full ${METHOD_COLORS[mix.method] ?? "bg-gold"}`}
+                      style={{ width: `${Math.min(mix.sharePct, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+        {/* Best sellers by product type */}
+        <Card className="bg-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{t("Best sellers by product type")}</CardTitle>
+            <CardDescription>
+              {t("Pieces sold and revenue per product type.")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-32 w-full" />
+            ) : bestSellers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("No sales in this period.")}</p>
+            ) : (
+              <div className="space-y-1">
+                {bestSellers.map((seller) => (
+                  <div
+                    key={seller.productType}
+                    className="flex items-center justify-between border-b border-border/60 py-1.5 text-sm last:border-0"
+                  >
+                    <span className="truncate font-medium">{seller.productType}</span>
+                    <span className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                      {seller.pcsSold} {t("pcs")} · {formatMoney(seller.revenue)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Most discounted invoices */}
+      <Card className="bg-white">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">{t("Most discounted invoices")}</CardTitle>
+          <CardDescription>
+            {t("The five invoices with the largest discount in the period.")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : (discounts?.topDiscountedSales.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("No discounted sales in this period.")}</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("Invoice")}</TableHead>
+                    <TableHead>{t("Date")}</TableHead>
+                    <TableHead className="text-right">{t("Invoice total")}</TableHead>
+                    <TableHead className="text-right">{t("Discount")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {discounts?.topDiscountedSales.map((sale) => (
+                    <TableRow key={sale.id}>
+                      <TableCell className="font-mono text-xs">{sale.invoiceNumber}</TableCell>
+                      <TableCell className="text-sm">{formatDate(sale.date)}</TableCell>
+                      <TableCell className="text-right font-mono">{formatMoney(sale.total)}</TableCell>
+                      <TableCell className="text-right font-mono text-rust">
+                        −{formatMoney(sale.discount)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function AnalyticsClient() {
   const { t } = useLanguage();
   const [start, setStart] = useState<string | undefined>(undefined);
@@ -133,6 +358,17 @@ export function AnalyticsClient() {
   const { data, error, isLoading } = useSWR<AnalyticsData>(
     `/api/analytics${queryString ? `?${queryString}` : ""}`,
     fetcher<AnalyticsData>,
+    { refreshInterval: 30000, keepPreviousData: true }
+  );
+
+  // Discount / payment-mix / best-seller intelligence — same date range.
+  const {
+    data: saleIntel,
+    error: saleIntelError,
+    isLoading: saleIntelLoading,
+  } = useSWR<SaleAnalyticsData>(
+    `/api/sale-analytics${queryString ? `?${queryString}` : ""}`,
+    fetcher<SaleAnalyticsData>,
     { refreshInterval: 30000, keepPreviousData: true }
   );
 
@@ -341,6 +577,7 @@ export function AnalyticsClient() {
         <TabsList variant="line">
           <TabsTrigger value="trends">{t("Sales trend")}</TabsTrigger>
           <TabsTrigger value="clients">{t("Top clients")}</TabsTrigger>
+          <TabsTrigger value="sale-intel">{t("Discounts & mix")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="trends" className="mt-4">
@@ -435,6 +672,14 @@ export function AnalyticsClient() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="sale-intel" className="mt-4">
+          <SaleIntelTab
+            data={saleIntel}
+            error={saleIntelError}
+            isLoading={saleIntelLoading}
+          />
         </TabsContent>
       </Tabs>
 
