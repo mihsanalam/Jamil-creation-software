@@ -79,6 +79,29 @@ interface DashboardSummary {
   }[];
 }
 
+// Payload from GET /api/stock-alerts — lots tripping low-stock/aging rules.
+interface StockAlertsData {
+  summary: {
+    lowStockThreshold: number;
+    agingStockDays: number;
+    lowStockCount: number;
+    agingStockCount: number;
+    totalRemainingUnits: number;
+  };
+  alerts: {
+    id: string;
+    barcode: string;
+    productType: string;
+    fabricType: string;
+    storageLocation: string;
+    quantity: number;
+    quantityRemaining: number;
+    daysInStock: number;
+    lowStock: boolean;
+    agingStock: boolean;
+  }[];
+}
+
 // SWR fetcher — throws on non-2xx so isLoading/error behave predictably.
 async function fetcher<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -118,6 +141,18 @@ export function DashboardClient() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInput, setSettingsInput] = useState("");
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // Low-stock / aging-stock warnings (Tier 2 #9) — poll a bit slower than
+  // the pipeline because stock moves only when the POS sells.
+  const {
+    data: stockAlerts,
+    error: stockAlertsError,
+    isLoading: stockAlertsLoading,
+  } = useSWR<StockAlertsData>("/api/stock-alerts", fetcher<StockAlertsData>, {
+    refreshInterval: 60000,
+    keepPreviousData: true,
+  });
+  const stockAlertsList = stockAlerts?.alerts ?? [];
 
   // Pre-fill the input from the last known summary value.
   function openSettings() {
@@ -489,6 +524,99 @@ export function DashboardClient() {
                   `${formatMoney(data?.dueCreditTotal ?? 0)} ${t("of cashback was credited against client dues (no cash moved).")}`}
               </p>
             )}
+        </CardContent>
+      </Card>
+
+      {/* Stock alerts — low stock & aging stock (Tier 2 #9) */}
+      <Card>
+        <CardHeader className="flex-row items-start justify-between space-y-0">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <TriangleAlert className="size-4 text-rust" aria-hidden />
+              {t("Stock alerts")}
+            </CardTitle>
+            {!stockAlertsLoading && stockAlerts && (
+              <p className="text-xs text-muted-foreground">
+                {t("Low stock")} ≤ {stockAlerts.summary.lowStockThreshold} {t("pcs")} ·{" "}
+                {t("on shelf over")} {stockAlerts.summary.agingStockDays} {t("days")}
+              </p>
+            )}
+          </div>
+          {!stockAlertsLoading &&
+            !stockAlertsError &&
+            stockAlertsList.length > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-rust/30 bg-rust/10 px-2.5 py-0.5 text-xs font-semibold text-rust">
+                {stockAlertsList.length} {t("lot(s)")}
+              </span>
+            )}
+        </CardHeader>
+        <CardContent>
+          {stockAlertsLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-3/4" />
+            </div>
+          ) : stockAlertsError ? (
+            <p className="py-4 text-sm text-rust">
+              {stockAlertsError.message}
+            </p>
+          ) : stockAlertsList.length === 0 ? (
+            <p className="py-4 text-sm text-muted-foreground">
+              {t("All lots are healthy — no low or aging stock.")}
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("Barcode")}</TableHead>
+                    <TableHead>{t("Product")}</TableHead>
+                    <TableHead>{t("Location")}</TableHead>
+                    <TableHead className="text-center">{t("On shelf")}</TableHead>
+                    <TableHead>{t("In stock")}</TableHead>
+                    <TableHead>{t("Alerts")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stockAlertsList.map((lot) => (
+                    <TableRow key={lot.id}>
+                      <TableCell className="font-mono text-xs">{lot.barcode}</TableCell>
+                      <TableCell className="font-medium text-charcoal">
+                        {lot.productType}
+                        <span className="block font-mono text-xs font-normal text-muted-foreground">
+                          {lot.fabricType}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {lot.storageLocation}
+                      </TableCell>
+                      <TableCell className="text-center font-mono">
+                        {lot.quantityRemaining}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
+                        {lot.daysInStock} {t("days")}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {lot.lowStock && (
+                            <span className="inline-flex items-center rounded-full border border-rust/30 bg-rust/10 px-2 py-0.5 text-xs font-medium text-rust">
+                              {t("Low stock")}
+                            </span>
+                          )}
+                          {lot.agingStock && (
+                            <span className="inline-flex items-center rounded-full border border-gold bg-gold/20 px-2 py-0.5 text-xs font-medium text-charcoal">
+                              {t("Aging")}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
