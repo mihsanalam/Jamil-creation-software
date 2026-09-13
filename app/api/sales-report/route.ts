@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2/promise";
 
 import { auth } from "@/auth";
@@ -69,6 +69,33 @@ function buildRangeClause(range: string): string {
         "DATE(s.created_at) < DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 1 MONTH),'%Y-%m-01')"
       );
   }
+}
+
+// Returns the WHERE clause for the *previous* period (the same-length window
+// immediately before the selected range). Used for "vs previous period" growth
+// comparisons. For "all" there is no previous period.
+function buildPreviousRangeClause(range: string): string {
+  switch (range) {
+    case "this_month":
+      return (
+        "DATE(s.created_at) >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH),'%Y-%m-01') AND " +
+        "DATE(s.created_at) < DATE_FORMAT(CURDATE(),'%Y-%m-01')"
+      );
+    case "last_month":
+      return (
+        "DATE(s.created_at) >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 2 MONTH),'%Y-%m-01') AND " +
+        "DATE(s.created_at) < DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH),'%Y-%m-01')"
+      );
+    default:
+      return "";
+  }
+}
+
+// Computes percentage change between current and previous values.
+// Returns null when there is no previous period or previous value is 0.
+function percentChange(current: number, previous: number): number | null {
+  if (previous === 0) return null;
+  return Math.round(((current - previous) / previous) * 100);
 }
 
 /**
@@ -144,6 +171,36 @@ export async function GET(request: Request) {
         ),
       ]);
 
+    // --- Previous period metrics (for "vs previous period" comparison) ---
+    // Only computed when a specific range is selected (not "all").
+    let prevTotalSales = 0;
+    let prevRetailSales = 0;
+    let prevWholesaleSales = 0;
+    if (range !== "all") {
+      const prevClause = buildPreviousRangeClause(range);
+      const wherePrev = prevClause ? `WHERE ${prevClause}` : "";
+      const [pTotal, pRetail, pWholesale] = await Promise.all([
+        scalar(
+          `SELECT COALESCE(SUM(total), 0) AS value FROM sales s ${wherePrev}`
+        ),
+        scalar(
+          `SELECT COALESCE(SUM(s.total), 0) AS value
+           FROM sales s
+           JOIN clients c ON c.id = s.client_id
+           ${wherePrev} AND c.type = 'RETAIL'`
+        ),
+        scalar(
+          `SELECT COALESCE(SUM(s.total), 0) AS value
+           FROM sales s
+           JOIN clients c ON c.id = s.client_id
+           ${wherePrev} AND c.type = 'WHOLESALE'`
+        ),
+      ]);
+      prevTotalSales = pTotal;
+      prevRetailSales = pRetail;
+      prevWholesaleSales = pWholesale;
+    }
+
     // --- Range-INDEPENDENT outstanding dues (all clients, all time) ---
     const totalOutstandingDues = await scalar(
       `SELECT COALESCE(SUM(total - amount_paid), 0) AS value
@@ -168,6 +225,18 @@ export async function GET(request: Request) {
          ORDER BY total_due DESC`
       )
     )[0] ?? [];
+
+    // Build comparison object (null for "all" range - no previous period).
+    const comparison = range !== "all"
+      ? {
+          totalSalesChange: percentChange(totalSales, prevTotalSales),
+          retailSalesChange: percentChange(retailSales, prevRetailSales),
+          wholesaleSalesChange: percentChange(wholesaleSales, prevWholesaleSales),
+          previousTotalSales: prevTotalSales,
+          previousRetailSales: prevRetailSales,
+          previousWholesaleSales: prevWholesaleSales,
+        }
+      : null;
 
     return NextResponse.json({
       totalSales: Number(totalSales),
@@ -198,6 +267,7 @@ export async function GET(request: Request) {
           ? (row.last_payment_date as Date).toISOString()
           : null,
       })),
+      comparison,
     });
   } catch (error) {
     console.error("Failed to load sales report:", error);
