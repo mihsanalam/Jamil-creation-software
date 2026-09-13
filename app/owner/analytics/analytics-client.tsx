@@ -102,6 +102,33 @@ interface SaleAnalyticsData {
   bestSellers: { productType: string; pcsSold: number; revenue: number }[];
 }
 
+// Wastage/defect payload from GET /api/wastage-analytics
+interface WastageAnalyticsData {
+  period: { start: string; end: string };
+  summary: {
+    returnLines: number;
+    returnedQty: number;
+    returnedValue: number;
+    returnedQtyPctOfRevenue: number;
+  };
+  reasons: { reason: string | null; count: number; qty: number }[];
+  products: {
+    productType: string;
+    returnCount: number;
+    returnedQty: number;
+    returnedValue: number;
+  }[];
+  batches: {
+    batchNumber: string;
+    productType: string;
+    fabricType: string;
+    supplier: string;
+    returnedQty: number;
+    returnedValue: number;
+  }[];
+  monthTrend: { month: string; returnedQty: number; cashback: number }[];
+}
+
 async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) {
@@ -345,6 +372,250 @@ function SaleIntelTab({
   );
 }
 
+/**
+ * "Returns & wastage" tab: defect intelligence built on the returns table —
+ * totals, reasons, worst product types and problem batches/suppliers, plus a
+ * month-by-month returned-quantity trend.
+ */
+function WastageTab({
+  data,
+  error,
+  isLoading,
+}: {
+  data: WastageAnalyticsData | undefined;
+  error: Error | undefined;
+  isLoading: boolean;
+}) {
+  const { t } = useLanguage();
+
+  if (error) {
+    return (
+      <Card className="bg-white">
+        <CardContent className="py-8 text-center text-sm text-rust">
+          {error.message}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const summary = data?.summary;
+  const reasons = data?.reasons ?? [];
+  const products = data?.products ?? [];
+  const batches = data?.batches ?? [];
+  const monthTrend = data?.monthTrend ?? [];
+
+  return (
+    <div className="space-y-4">
+      {/* Summary cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="bg-white">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">{t("Returned pieces")}</p>
+            <p className="font-heading text-2xl font-semibold text-charcoal">
+              {isLoading ? "—" : (summary?.returnedQty ?? 0).toLocaleString("en-US")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {summary?.returnLines ?? 0} {t("return lines")}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-white">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">{t("Refund value")}</p>
+            <p className="font-heading text-2xl font-semibold text-rust">
+              {isLoading ? "—" : formatMoney(summary?.returnedValue ?? 0)}
+            </p>
+            <p className="text-xs text-muted-foreground">{t("cash handed back on returns")}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-white">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">{t("Return rate")}</p>
+            <p className="font-heading text-2xl font-semibold text-charcoal">
+              {isLoading ? "—" : `${summary?.returnedQtyPctOfRevenue ?? 0}%`}
+            </p>
+            <p className="text-xs text-muted-foreground">{t("of sold quantity came back")}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-white">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">{t("Top reason")}</p>
+            <p className="truncate font-heading text-2xl font-semibold text-charcoal">
+              {isLoading ? "—" : reasons[0]?.reason || t("—")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {reasons[0] ? `${reasons[0].qty} ${t("pcs returned")}` : t("no returns yet")}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Return reasons breakdown */}
+      <Card className="bg-white">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">{t("Return reasons")}</CardTitle>
+          <CardDescription>
+            {t("Why pieces came back, ranked by returned quantity.")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : reasons.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("No returns in this period.")}</p>
+          ) : (
+            reasons.map((item, index) => (
+              <div key={`${item.reason ?? "unspecified"}-${index}`}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span className="truncate text-muted-foreground">
+                    {item.reason?.trim() || t("Unspecified")} · {item.count}{" "}
+                    {t("return lines")}
+                  </span>
+                  <span className="font-mono text-xs">{item.qty} pcs</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-charcoal/10">
+                  <div
+                    className="h-full rounded-full bg-rust"
+                    style={{
+                      width: `${Math.min(
+                        summary && summary.returnedQty > 0
+                          ? (item.qty / summary.returnedQty) * 100
+                          : 0,
+                        100
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Most returned product types */}
+        <Card className="bg-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{t("Most returned product types")}</CardTitle>
+            <CardDescription>
+              {t("Product types with the highest returned quantity and refund value.")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-32 w-full" />
+            ) : products.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("No returns in this period.")}</p>
+            ) : (
+              <div className="space-y-1">
+                {products.map((product) => (
+                  <div
+                    key={product.productType}
+                    className="flex items-center justify-between border-b border-border/60 py-1.5 text-sm last:border-0"
+                  >
+                    <span className="truncate font-medium">{product.productType}</span>
+                    <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="font-mono">
+                        {product.returnedQty} pcs · {product.returnCount}{" "}
+                        {t("return lines")}
+                      </span>
+                      <span className="font-mono text-rust">
+                        {formatMoney(product.returnedValue)}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        {/* Problem batches & suppliers */}
+        <Card className="bg-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{t("Problem batches & suppliers")}</CardTitle>
+            <CardDescription>
+              {t("Batches with the most returned pieces — supplier follows the batch.")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-32 w-full" />
+            ) : batches.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("No returns in this period.")}</p>
+            ) : (
+              <div className="space-y-1">
+                {batches.map((batch) => (
+                  <div
+                    key={batch.batchNumber}
+                    className="flex items-center justify-between border-b border-border/60 py-1.5 text-sm last:border-0"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">
+                        #{batch.batchNumber} · {batch.productType}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {batch.fabricType} · {batch.supplier}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                      <span className="font-mono">{batch.returnedQty} pcs</span>
+                      <span className="font-mono text-rust">
+                        {formatMoney(batch.returnedValue)}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Month-by-month returned quantity trend */}
+      <Card className="bg-white">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">{t("Returned quantity by month")}</CardTitle>
+          <CardDescription>
+            {t("How many pieces came back each month, with the cashback handed out.")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <Skeleton className="h-32 w-full" />
+          ) : monthTrend.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("No returns in this period.")}</p>
+          ) : (
+            <div className="space-y-3">
+              {(() => {
+                const maxQty = Math.max(...monthTrend.map((m) => m.returnedQty), 1);
+                return monthTrend.map((month) => (
+                  <div key={month.month}>
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span className="truncate text-muted-foreground">{month.month}</span>
+                      <span className="flex items-center gap-3 text-xs">
+                        <span className="font-mono">{month.returnedQty} pcs</span>
+                        <span className="font-mono text-rust">
+                          {formatMoney(month.cashback)}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-charcoal/10">
+                      <div
+                        className="h-full rounded-full bg-gold"
+                        style={{ width: `${(month.returnedQty / maxQty) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function AnalyticsClient() {
   const { t } = useLanguage();
   const [start, setStart] = useState<string | undefined>(undefined);
@@ -369,6 +640,17 @@ export function AnalyticsClient() {
   } = useSWR<SaleAnalyticsData>(
     `/api/sale-analytics${queryString ? `?${queryString}` : ""}`,
     fetcher<SaleAnalyticsData>,
+    { refreshInterval: 30000, keepPreviousData: true }
+  );
+
+  // Returns/defect intelligence — same date range.
+  const {
+    data: wastage,
+    error: wastageError,
+    isLoading: wastageLoading,
+  } = useSWR<WastageAnalyticsData>(
+    `/api/wastage-analytics${queryString ? `?${queryString}` : ""}`,
+    fetcher<WastageAnalyticsData>,
     { refreshInterval: 30000, keepPreviousData: true }
   );
 
@@ -578,6 +860,7 @@ export function AnalyticsClient() {
           <TabsTrigger value="trends">{t("Sales trend")}</TabsTrigger>
           <TabsTrigger value="clients">{t("Top clients")}</TabsTrigger>
           <TabsTrigger value="sale-intel">{t("Discounts & mix")}</TabsTrigger>
+          <TabsTrigger value="wastage">{t("Returns & wastage")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="trends" className="mt-4">
@@ -679,6 +962,14 @@ export function AnalyticsClient() {
             data={saleIntel}
             error={saleIntelError}
             isLoading={saleIntelLoading}
+          />
+        </TabsContent>
+
+        <TabsContent value="wastage" className="mt-4">
+          <WastageTab
+            data={wastage}
+            error={wastageError}
+            isLoading={wastageLoading}
           />
         </TabsContent>
       </Tabs>
