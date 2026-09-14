@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Camera, Check, ChevronDown, Loader2, ScanBarcode, Trash2 } from "lucide-react";
+import { Camera, Check, ChevronDown, Loader2, ScanBarcode, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { BarcodeScannerDialog } from "@/components/shared/barcode-scanner-dialog";
@@ -41,6 +41,17 @@ interface LookupProduct {
   barcode: string;
   quantityRemaining: number;
   productType: string;
+  batchNumber: string;
+  storageLocation: string;
+}
+
+// Product returned by GET /api/finished-products/lookup-by-type.
+interface TypeLookupProduct {
+  id: string;
+  barcode: string;
+  productType: string;
+  quantity: number;
+  quantityRemaining: number;
   batchNumber: string;
   storageLocation: string;
 }
@@ -100,6 +111,42 @@ export function NewSaleClient() {
   const [amountPaidInput, setAmountPaidInput] = useState("0");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // #15 Type-ahead on product type: as the operator types (2+ chars that are
+  // NOT a barcode like JC-0001), in-stock lots whose product type matches are
+  // offered in a dropdown. Arrow keys + Enter pick one; a real scan flow is
+  // untouched. typeQuery is debounced so typing "lun" fires one request.
+  const [typeQuery, setTypeQuery] = useState("");
+  const [typeaheadOpen, setTypeaheadOpen] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  useEffect(() => {
+    const trimmed = barcodeInput.trim();
+    // Barcode-shaped input (JC-… or pure digits) goes through the scan flow,
+    // not the type-ahead. Anything else 2+ chars opens the dropdown.
+    const looksLikeBarcode = /^jc-/i.test(trimmed) || /^\d+$/.test(trimmed);
+    if (!looksLikeBarcode && trimmed.length >= 2) {
+      const timer = setTimeout(() => {
+        setTypeQuery(trimmed);
+        setTypeaheadOpen(true);
+        setHighlightIndex(0);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+    setTypeQuery("");
+    setTypeaheadOpen(false);
+    return undefined;
+  }, [barcodeInput]);
+
+  const {
+    data: typeMatches,
+    isLoading: typeMatchesLoading,
+  } = useSWR<TypeLookupProduct[]>(
+    typeQuery.length >= 2
+      ? `/api/finished-products/lookup-by-type?type=${encodeURIComponent(typeQuery)}`
+      : null,
+    fetcher<TypeLookupProduct[]>
+  );
+  const typeResults = typeMatches ?? [];
+
   // Scanner handling refs. A USB barcode scanner "types" the barcode and
   // presses Enter, so the input must hold focus at all times and lookup must
   // run on Enter only. The pending ref queues a scan that lands while a
@@ -109,6 +156,9 @@ export function NewSaleClient() {
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const pendingScanRef = useRef<string | null>(null);
   const cartRef = useRef<CartItem[]>([]);
+  // Mirrors canComplete so the global Enter-to-finalize handler sees the
+  // latest values without re-binding the window listener on every render.
+  const canCompleteRef = useRef(false);
   useEffect(() => {
     cartRef.current = cart;
   }, [cart]);
@@ -117,6 +167,30 @@ export function NewSaleClient() {
   // "typing" lands in this field.
   useEffect(() => {
     barcodeInputRef.current?.focus();
+  }, []);
+
+  // Keyboard-first POS: whatever the operator types on a physical keyboard
+  // should land in the barcode field unless they are deliberately typing in
+  // another field (price, discount, client search…). When focus is NOT in an
+  // editable element and a key is pressed, bounce focus back to the scanner.
+  // Excludes whitespace-only presses (Tab navigation) so Tab still works.
+  useEffect(() => {
+    function handleGlobalKeydown(event: KeyboardEvent) {
+      if (event.key.length !== 1 && event.key !== "Backspace") return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName?.toUpperCase() ?? "";
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      barcodeInputRef.current?.focus();
+    }
+    window.addEventListener("keydown", handleGlobalKeydown);
+    return () => window.removeEventListener("keydown", handleGlobalKeydown);
   }, []);
 
   const {
@@ -153,6 +227,37 @@ export function NewSaleClient() {
     input?.select();
   }
 
+  // Add an in-stock lot (from a scan or from the type-ahead) to the cart.
+  // Shared by both flows so the duplicate + shape logic lives in one place.
+  function addProductToCart(
+    product: Pick<
+      LookupProduct,
+      "id" | "barcode" | "productType" | "batchNumber" | "quantityRemaining"
+    >
+  ) {
+    if (cartRef.current.some((item) => item.productId === product.id)) {
+      toast.error(`${product.barcode} ${t("is already in the cart.")}`);
+      keepAndSelectBarcodeInput();
+      return false;
+    }
+    setCart((current) => [
+      ...current,
+      {
+        productId: product.id,
+        barcode: product.barcode,
+        productType: product.productType,
+        batchNumber: product.batchNumber,
+        quantity: product.quantityRemaining,
+        available: product.quantityRemaining,
+        unitPrice: "",
+      },
+    ]);
+    setBarcodeInput("");
+    setTypeaheadOpen(false);
+    barcodeInputRef.current?.focus();
+    return true;
+  }
+
   // Look one barcode up and add it to the cart. Never throws — every path
   // shows its own feedback. On success the input is cleared and re-focused
   // for the next scan; on failure the text is kept and selected.
@@ -177,26 +282,17 @@ export function NewSaleClient() {
         return;
       }
 
-      if (cartRef.current.some((item) => item.productId === product.id)) {
-        toast.error(`${product.barcode} ${t("is already in the cart.")}`);
-        keepAndSelectBarcodeInput();
-        return;
-      }
-
-      setCart((current) => [
-        ...current,
-        {
-          productId: product.id,
+      if (
+        !addProductToCart({
+          id: product.id,
           barcode: product.barcode,
           productType: product.productType,
           batchNumber: product.batchNumber,
-          quantity: product.quantityRemaining,
-          available: product.quantityRemaining,
-          unitPrice: "",
-        },
-      ]);
-      setBarcodeInput("");
-      barcodeInputRef.current?.focus();
+          quantityRemaining: product.quantityRemaining,
+        })
+      ) {
+        return;
+      }
     } catch {
       toast.error(t("Could not reach the server. Please check your connection."));
       keepAndSelectBarcodeInput();
@@ -232,6 +328,59 @@ export function NewSaleClient() {
     event.preventDefault();
     const barcode = barcodeInput.trim();
     if (barcode !== "") void runScanLoop(barcode);
+  }
+
+  // #15 Keyboard navigation for the type-ahead dropdown: ArrowUp/ArrowDown
+  // move the highlight, Enter picks the highlighted lot (instead of scanning),
+  // Escape closes the dropdown. A plain scan (barcode-shaped text) never opens
+  // the dropdown, so scanner Enter is unaffected.
+  function handleBarcodeKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (typeaheadOpen && typeResults.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setHighlightIndex((current) => (current + 1) % typeResults.length);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setHighlightIndex((current) =>
+          current <= 0 ? typeResults.length - 1 : current - 1
+        );
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        pickTypeahead(typeResults[highlightIndex]);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setTypeaheadOpen(false);
+        return;
+      }
+    }
+
+    // #14 Enter-to-finalize: with an empty barcode field, a full cart and a
+    // valid client, Enter completes the sale — no mouse needed at the counter.
+    if (
+      event.key === "Enter" &&
+      barcodeInput.trim() === "" &&
+      canCompleteRef.current
+    ) {
+      event.preventDefault();
+      void handleCompleteSale();
+    }
+  }
+
+  // Pick a lot from the type-ahead dropdown and add it to the cart.
+  function pickTypeahead(product: TypeLookupProduct) {
+    addProductToCart({
+      id: product.id,
+      barcode: product.barcode,
+      productType: product.productType,
+      batchNumber: product.batchNumber,
+      quantityRemaining: product.quantityRemaining,
+    });
   }
 
   function updateItemUnitPrice(productId: string, value: string) {
@@ -311,6 +460,11 @@ export function NewSaleClient() {
     cart.length > 0 &&
     cart.every((item) => Number(item.unitPrice) > 0) &&
     !isSubmitting;
+
+  // Keep the ref in sync for the keyboard finalize shortcut.
+  useEffect(() => {
+    canCompleteRef.current = canComplete;
+  }, [canComplete]);
 
   return (
     <div className="space-y-5">
@@ -400,7 +554,7 @@ export function NewSaleClient() {
       </Popover>
 
       {/* Barcode scan */}
-      <div className="max-w-xl">
+      <div className="relative max-w-xl">
         <form onSubmit={handleScan} className="flex gap-2">
           <div className="relative flex-1">
             <ScanBarcode className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -408,6 +562,7 @@ export function NewSaleClient() {
               ref={barcodeInputRef}
               value={barcodeInput}
               onChange={(event) => setBarcodeInput(event.target.value)}
+              onKeyDown={handleBarcodeKeyDown}
               placeholder={t("Scan barcode or type JC-0001 then press Enter")}
               className="h-11 pl-9 font-mono"
               autoFocus
@@ -427,6 +582,54 @@ export function NewSaleClient() {
             {isScanning ? <Loader2 className="size-4 animate-spin" /> : t("Add")}
           </Button>
         </form>
+
+        {/* #15 Product-type type-ahead dropdown. Barcode-shaped input never
+            opens it, so the scanner flow is completely unaffected. */}
+        {typeaheadOpen && (
+          <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-border bg-white shadow-lg">
+            {typeMatchesLoading ? (
+              <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                {t("Looking up products…")}
+              </div>
+            ) : typeResults.length === 0 ? (
+              <p className="px-4 py-3 text-sm text-muted-foreground">
+                {t("No products match that type.")}
+              </p>
+            ) : (
+              <ul className="max-h-72 overflow-y-auto" role="listbox">
+                {typeResults.map((product, index) => (
+                  <li key={product.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={index === highlightIndex}
+                      onMouseEnter={() => setHighlightIndex(index)}
+                      onClick={() => pickTypeahead(product)}
+                      className={cn(
+                        "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors",
+                        index === highlightIndex
+                          ? "bg-gold/15"
+                          : "hover:bg-muted/40"
+                      )}
+                    >
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {product.barcode}
+                      </span>
+                      <span className="font-medium text-charcoal">
+                        {product.productType}
+                      </span>
+                      <span className="ml-auto font-mono text-xs text-muted-foreground">
+                        {product.quantityRemaining} {t("left in stock")}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         {/* Manual fallback for PCs without a scanner attached. */}
         <p className="mt-2 text-xs text-muted-foreground">
           {t("No scanner at this PC?")}{" "}
@@ -437,7 +640,8 @@ export function NewSaleClient() {
           >
             {t("Or enter barcode manually")}
           </button>{" "}
-          {t("— type it (e.g. JC-0001) and press Enter, exactly like a scan.")}
+          {t("— type it (e.g. JC-0001) and press Enter, exactly like a scan.")}{" "}
+          {t("You can also type a product type (e.g. Lungi) and press Enter.")}
         </p>
       </div>
 
