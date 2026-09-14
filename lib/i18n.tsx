@@ -203,6 +203,15 @@ const BN: Record<string, string> = {
   "All phases are complete — this batch is ready to become stock.":
     "সব ফেজ সম্পন্ন — এই ব্যাচ স্টকে যাওয়ার জন্য প্রস্তুত।",
   "Product type": "পণ্যের ধরন",
+  "Could not re-open the phase.": "ধাপটি পুনরায় খোলা যায়নি।",
+  "Phase re-opened. It is back on the board.":
+    "ধাপটি পুনরায় খোলা হয়েছে। এটি বোর্ডে ফিরে এসেছে।",
+  "Mistaken completion? Re-open the phase and it returns to the board.":
+    "ভুলবশত সম্পন্ন হয়েছে? ধাপটি পুনরায় খুলুন এবং এটি বোর্ডে ফিরে আসবে।",
+  "No completed orders yet.": "এখনো কোনো সম্পন্ন অর্ডার নেই।",
+  "Undoing…": "পূর্বাবস্থায় আনা হচ্ছে…",
+  "Board": "বোর্ড",
+  
   Barcode: "বারকোড",
   "Generate a unique barcode for this finished product.":
     "এই সমাপ্ত পণ্যের জন্য একটি ইউনিক বারকোড তৈরি করুন।",
@@ -265,6 +274,52 @@ const BN: Record<string, string> = {
     "প্রতিটি চলমান ওয়ার্ক অর্ডার বোর্ডে একটি সক্রিয় ফেজে দেখা যায়। খুলতে কার্ডে ক্লিক করুন।",
   "No work orders in progress right now.":
     "এই মুহূর্তে কোনো চলমান ওয়ার্ক অর্ডার নেই।",
+  "Show completed only": "শুধু সম্পন্ন দেখান",
+  "Show in-progress only": "শুধু চলমান দেখান",
+  "Completed orders": "সম্পন্ন অর্ডার",
+  "Undo completion": "সম্পন্ন পূর্বাবস্থায় আনুন",
+  "Are you sure you want to re-open this phase?":
+    "আপনি কি নিশ্চিত যে আপনি এই ধাপটি পুনরায় খুলতে চান?",
+  "This will move the phase back to IN_PROGRESS.":
+    "এটি ধাপটিকে আবার IN_PROGRESS-এ নিয়ে যাবে।",
+  "Undo": "পূর্বাবস্থায় আনুন",
+  "Days in phase": "ধাপে দিন",
+  "Filter by product type": "পণ্যের ধরন দিয়ে ফিল্টার",
+  "All product types": "সব পণ্যের ধরন",
+
+  // ── Worker workload (Operator) ─────────────────────────────────────────
+  "Worker workload": "শ্রমিকের কাজের ভার",
+  "Current load": "বর্তমান বোঝা",
+  "No workers with active phases.": "চলমান ধাপে কোনো শ্রমিক নেই।",
+  "Bottleneck": "বাধা",
+  "Worker": "শ্রমিক",
+
+  // ── Batch label printing (Collector) ───────────────────────────────────
+  "Print batch labels": "ব্যাচ লেবেল প্রিন্ট করুন",
+  "Select batches to print labels for.": "লেবেল প্রিন্ট করার জন্য ব্যাচ নির্বাচন করুন।",
+  "No batches selected.": "কোনো ব্যাচ নির্বাচন করা হয়নি।",
+  "Label preview": "লেবেল প্রিভিউ",
+  "Fabric:": "কাপড়:",
+  "Qty:": "পরিমাণ:",
+  "Batch labels queued for printing.": "ব্যাচ লেবেল প্রিন্টের জন্য সারিবদ্ধ।",
+  "Could not queue labels.": "লেবেল সারিবদ্ধ করা যায়নি।",
+  "Print selected": "নির্বাচিত প্রিন্ট করুন",
+  "Clear selection": "নির্বাচন মুছুন",
+  "Select All": "সব নির্বাচন করুন",
+  "Deselect All": "নির্বাচন মুছুন",
+  "Batch QR Label": "ব্যাচ QR লেবেল",
+
+  // ── Offline queue (Operator) ────────────────────────────────────────────
+  "Offline changes": "অফলাইন পরিবর্তন",
+  "Offline mode": "অফলাইন মোড",
+  "Your changes are saved locally and will be sent when the connection returns.":
+    "আপনার পরিবর্তনগুলো স্থানীয়ভাবে সংরক্ষিত হয়েছে এবং সংযোগ ফিরে এলে পাঠানো হবে।",
+  "Retry sending": "পুনরায় পাঠান",
+  "Pending changes": "মুগ্ধ পরিবর্তন",
+  "No pending changes.": "কোনো মুগ্ধ পরিবর্তন নেই।",
+  "Could not send offline changes.": "অফলাইন পরিবর্তন পাঠানো যায়নি।",
+  "All changes sent.": "সব পরিবর্তন পাঠানো হয়েছে।",
+  "Send pending changes": "মুগ্ধ পরিবর্তন পাঠান",
 
   // ── Batch detail (Operator) ──────────────────────────────────────────
   "Back to phase board": "ফেজ বোর্ডে ফিরুন",
@@ -279,7 +334,6 @@ const BN: Record<string, string> = {
   complete: "সম্পন্ন হয়েছে",
   started: "শুরু হয়েছে",
   "Current phase": "বর্তমান ফেজ",
-  Worker: "কর্মী",
   Started: "শুরু",
   "Quantity in": "ভেতরে আসা পরিমাণ",
   "Quantity out": "বাইরে যাওয়া পরিমাণ",
@@ -346,6 +400,10 @@ const BN: Record<string, string> = {
     "— (যেমন JC-0001) লিখে Enter চাপুন, ঠিক স্ক্যানের মতো।",
   "No items yet — scan a barcode above to start the sale.":
     "এখনো কোনো পণ্য নেই — বিক্রয় শুরু করতে উপরে বারকোড স্ক্যান করুন।",
+  "Scan by product type…": "পণ্যের ধরন দিয়ে স্ক্যান করুন…",
+  "No products match that type.": "ওই ধরনের কোনো পণ্য নেই।",
+  "Select a product to add to cart.": "কার্টে যোগ করতে একটি পণ্য নির্বাচন করুন।",
+  "Press Enter to scan, or type a product type.": "স্ক্যানের জন্য Enter চাপুন, বা পণ্যের ধরন লিখুন।",
   "Payment summary": "পেমেন্ট সারসংক্ষেপ",
   "Amount paid now (৳)": "এখন পরিশোধিত (৳)",
   "Due after this payment:": "এই পেমেন্টের পরে বাকি:",
