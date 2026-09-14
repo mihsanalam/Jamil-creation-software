@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import useSWR from "swr";
-import { Eye, Search } from "lucide-react";
+import { Eye, Loader2, Printer, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { BatchDetailDialog } from "@/app/collector/batch-list/batch-detail-dialog";
@@ -101,6 +101,9 @@ export function BatchListClient() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [selectedBatch, setSelectedBatch] = useState<FabricBatch | null>(null);
+  // #13 Batch label printing: rows ticked for QR label printing.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [printingLabels, setPrintingLabels] = useState(false);
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortDir, setSortDir] = useState<SortDirection>("desc");
 
@@ -183,6 +186,114 @@ export function BatchListClient() {
     }
   }
 
+  // #13 Batch label printing — toggle one row's checkbox.
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((current) =>
+      current.size === visible.length
+        ? new Set()
+        : new Set(visible.map((batch) => batch.id))
+    );
+  }
+
+  // #13 Batch label printing — ask the API for QR data URLs, then open a
+  // print window with one label per batch (QR, batch no., fabric, qty).
+  async function handlePrintLabels() {
+    if (selectedIds.size === 0) {
+      toast.error(t("No batches selected."));
+      return;
+    }
+    setPrintingLabels(true);
+    try {
+      const response = await fetch("/api/batch-labels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchIds: [...selectedIds] }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        toast.error(payload?.message ?? t("Could not queue labels."));
+        return;
+      }
+
+      const labels = payload?.labels as
+        | {
+            batchNumber: string;
+            fabricType: string;
+            quantity: number;
+            unit: string;
+            qrDataUrl: string;
+          }[]
+        | undefined;
+      if (!labels || labels.length === 0) {
+        toast.error(t("Could not queue labels."));
+        return;
+      }
+
+      // Build a minimal print sheet — one square label per batch, sized for
+      // a standard label printer sheet (e.g. A4 grid or roll paper).
+      const labelHtml = labels
+        .map(
+          (label) => `
+          <div class="label">
+            <img src="${label.qrDataUrl}" alt="QR ${label.batchNumber}" />
+            <p class="batch">${label.batchNumber}</p>
+            <p class="meta">${label.fabricType} · ${label.quantity} ${label.unit}</p>
+          </div>`
+        )
+        .join("");
+
+      const printWindow = window.open("", "_blank", "width=800,height=600");
+      if (!printWindow) {
+        toast.error(t("Could not queue labels."));
+        return;
+      }
+      printWindow.document.write(`<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${t("Batch QR Label")}</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; padding: 12px; }
+      .sheet { display: flex; flex-wrap: wrap; gap: 8px; }
+      .label {
+        width: 200px; border: 1px solid #d4d4d4; border-radius: 8px;
+        padding: 10px; text-align: center; page-break-inside: avoid;
+      }
+      .label img { width: 120px; height: 120px; }
+      .batch { margin: 6px 0 2px; font-family: ui-monospace, monospace;
+               font-size: 14px; font-weight: 700; }
+      .meta { margin: 0; font-size: 11px; color: #555; }
+      @media print { body { padding: 0; } }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">${labelHtml}</div>
+    <script>window.onload = function () { window.focus(); window.print(); };</script>
+  </body>
+</html>`);
+      printWindow.document.close();
+
+      toast.success(t("Batch labels queued for printing."));
+      setSelectedIds(new Set());
+    } catch {
+      toast.error(t("Could not reach the server. Please check your connection."));
+    } finally {
+      setPrintingLabels(false);
+    }
+  }
+
   // Called by the detail dialog after a photo add/change/remove PATCH, so the
   // list (and the open dialog) reflect the change without waiting for the
   // next 8s poll.
@@ -257,10 +368,40 @@ export function BatchListClient() {
         </div>
       </div>
 
-      {/* Row count */}
-      <p className="text-sm text-muted-foreground">
-        {isLoading ? t("Loading…") : `${visible.length} ${t("batches")}`}
-      </p>
+      {/* Row count + label-print toolbar (#13) */}
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-sm text-muted-foreground">
+          {isLoading ? t("Loading…") : `${visible.length} ${t("batches")}`}
+        </p>
+        {!isLoading && !error && visible.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-charcoal hover:underline"
+            >
+              {selectedIds.size === visible.length
+                ? t("Deselect All")
+                : t("Select All")}
+            </button>
+            {selectedIds.size > 0 && (
+              <Button
+                type="button"
+                onClick={handlePrintLabels}
+                disabled={printingLabels}
+                className="ml-auto h-9 gap-2 rounded-lg bg-gold px-4 text-sm font-semibold text-charcoal shadow-sm transition-all hover:bg-gold/90 disabled:opacity-50"
+              >
+                {printingLabels ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Printer className="size-4" aria-hidden />
+                )}
+                {t("Print batch labels")} ({selectedIds.size})
+              </Button>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Error state */}
       {error && (
@@ -290,6 +431,20 @@ export function BatchListClient() {
       {!isLoading && !error && visible.length > 0 && (
         <DataTable
           columns={[
+            {
+              key: "select",
+              header: "",
+              hideHeader: true,
+              renderCell: (batch) => (
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(batch.id)}
+                  onChange={() => toggleSelected(batch.id)}
+                  aria-label={`${t("Print batch labels")} · ${batch.batchNumber}`}
+                  className="size-4 cursor-pointer rounded border-border accent-gold"
+                />
+              ),
+            },
             {
               key: "batchNumber",
               header: t("Batch number"),
