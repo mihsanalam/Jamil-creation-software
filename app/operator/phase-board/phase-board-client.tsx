@@ -1,9 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { Layers } from "lucide-react";
+import {
+  AlertCircle,
+  Clock,
+  History,
+  Layers,
+  RotateCcw,
+  Users,
+  WifiOff,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import {
   Select,
@@ -13,8 +22,52 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/lib/i18n";
+import {
+  flushQueue,
+  getQueueSize,
+  queueRequest,
+} from "@/lib/offline-queue";
 import { cn } from "@/lib/utils";
+
+// ── Completed order and phase types ─────────────────────────────────────────
+
+export interface CompletedPhase {
+  id: string;
+  name: string;
+  stepOrder: number;
+  status: string;
+  workerName: string | null;
+  qtyIn: number | null;
+  qtyOut: number | null;
+  notes: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface CompletedWorkOrder {
+  id: string;
+  fabricBatchId: string;
+  phaseTemplateId: string;
+  productType: string;
+  quantity: number;
+  status: string;
+  createdAt: string;
+  batchNumber: string;
+  fabricType: string;
+  templateName: string;
+  phases: CompletedPhase[];
+}
+
+// ── Worker load types ───────────────────────────────────────────────────────
+
+export interface WorkerLoad {
+  workerName: string;
+  inProgressCount: number;
+}
+
+// ── Existing types (in-progress) ────────────────────────────────────────────
 
 // One phase inside a work order (shape returned by GET /api/work-orders).
 export interface WorkOrderPhase {
@@ -96,6 +149,92 @@ export function PhaseBoardClient() {
   );
 
   const [productType, setProductType] = useState<string>("ALL");
+  // "board" is the live kanban; "workload" is the per-worker load report (#17).
+  const [view, setView] = useState<"board" | "workload">("board");
+  // Completed-history toggle (#18): fetches completed orders on demand.
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [undoingId, setUndoingId] = useState<string | null>(null);
+
+  // Completed orders are only fetched while the toggle is on, so the board
+  // keeps its lightweight 5s poll in the normal case.
+  const {
+    data: completedOrders,
+    isLoading: completedLoading,
+    mutate: mutateCompleted,
+  } = useSWR<CompletedWorkOrder[]>(
+    showCompleted ? "/api/work-orders/completed" : null,
+    fetcher<CompletedWorkOrder[]>
+  );
+
+  // Worker load report — only fetched in the workload view.
+  const { data: workerLoad, isLoading: loadLoading } = useSWR<WorkerLoad[]>(
+    view === "workload" ? "/api/workers/load" : null,
+    fetcher<WorkerLoad[]>
+  );
+
+  const maxLoad = Math.max(1, ...(workerLoad ?? []).map((w) => w.inProgressCount));
+
+  // #16 Offline resilience: any status change queued while offline is replayed
+  // when the board loads (or the browser reports "online"); while requests are
+  // still pending a banner shows the count with a manual retry button.
+  const [pendingCount, setPendingCount] = useState(0);
+  useEffect(() => {
+    setPendingCount(getQueueSize());
+    if (getQueueSize() === 0) return;
+    void flushQueue().then((sent) => {
+      setPendingCount(getQueueSize());
+      if (sent > 0) {
+        toast.success(t("All changes sent."));
+      }
+    });
+  }, [t]);
+
+  async function handleRetryPending() {
+    const sent = await flushQueue();
+    setPendingCount(getQueueSize());
+    if (sent > 0) {
+      toast.success(t("All changes sent."));
+    } else if (getQueueSize() > 0) {
+      toast.error(t("Could not send offline changes."));
+    }
+  }
+
+  // Re-open a mistakenly completed phase: POST to the undo endpoint, then
+  // refresh both the completed list and the live board.
+  async function handleUndoPhase(phaseId: string) {
+    if (
+      !confirm(
+        `${t("Are you sure you want to re-open this phase?")} ${t("This will move the phase back to IN_PROGRESS.")}`
+      )
+    ) {
+      return;
+    }
+    setUndoingId(phaseId);
+    try {
+      const response = await fetch(`/api/work-order-phases/${phaseId}/undo`, {
+        method: "POST",
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        toast.error(payload?.message ?? t("Could not re-open the phase."));
+        return;
+      }
+      toast.success(t("Phase re-opened. It is back on the board."));
+      mutateCompleted();
+    } catch {
+      // Offline (#16): queue the undo so the correction still happens when
+      // the connection returns.
+      queueRequest(`/api/work-order-phases/${phaseId}/undo`, "POST", null);
+      setPendingCount(getQueueSize());
+      toast.warning(t("Offline mode"), {
+        description: t(
+          "Your changes are saved locally and will be sent when the connection returns."
+        ),
+      });
+    } finally {
+      setUndoingId(null);
+    }
+  }
 
   // The API only returns IN_PROGRESS orders; guard anyway.
   const orders = (data ?? []).filter((o) => o.status === "IN_PROGRESS");
@@ -146,6 +285,35 @@ export function PhaseBoardClient() {
           <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t("Product type")}
           </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant={view === "board" ? "default" : "outline"}
+              onClick={() => setView("board")}
+              className="h-9 gap-1.5 rounded-lg px-3 text-sm"
+            >
+              <Layers className="size-4" aria-hidden />
+              {t("Board")}
+            </Button>
+            <Button
+              type="button"
+              variant={view === "workload" ? "default" : "outline"}
+              onClick={() => setView("workload")}
+              className="h-9 gap-1.5 rounded-lg px-3 text-sm"
+            >
+              <Users className="size-4" aria-hidden />
+              {t("Worker workload")}
+            </Button>
+            <Button
+              type="button"
+              variant={showCompleted ? "default" : "outline"}
+              onClick={() => setShowCompleted((current) => !current)}
+              aria-pressed={showCompleted}
+              className="h-9 gap-1.5 rounded-lg px-3 text-sm"
+            >
+              <History className="size-4" aria-hidden />
+              {showCompleted ? t("Show in-progress only") : t("Show completed only")}
+            </Button>
           <Select
             value={productType}
             onValueChange={(v) => setProductType(v as string)}
@@ -162,18 +330,103 @@ export function PhaseBoardClient() {
               ))}
             </SelectContent>
           </Select>
+          </div>
         </div>
       </header>
 
+      {/* #16 Offline banner — shown while requests sit in the local queue */}
+      {pendingCount > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-charcoal">
+          <WifiOff className="size-4 shrink-0 text-gold" aria-hidden />
+          <span>
+            {t("Pending changes")}:{" "}
+            <span className="font-mono font-semibold">{pendingCount}</span>
+            <span className="hidden md:inline">
+              {" "}
+              —{" "}
+              {t(
+                "Your changes are saved locally and will be sent when the connection returns."
+              )}
+            </span>
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleRetryPending}
+            className="ml-auto h-7 gap-1 rounded-md px-2 text-xs"
+          >
+            {t("Retry sending")}
+          </Button>
+        </div>
+      )}
+
+      {/* Worker workload view (#17) — who is carrying what right now */}
+      {view === "workload" && (
+        <section className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-border">
+          <h2 className="text-lg font-semibold text-charcoal">
+            {t("Worker workload")}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("Current load")}
+          </p>
+          {loadLoading ? (
+            <div className="mt-4 space-y-2">
+              {[0, 1, 2].map((index) => (
+                <Skeleton key={index} className="h-10 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : (workerLoad?.length ?? 0) === 0 ? (
+            <p className="mt-4 rounded-lg border border-dashed border-border bg-white/60 px-4 py-6 text-center text-sm text-muted-foreground">
+              {t("No workers with active phases.")}
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {workerLoad!.map((worker, index) => (
+                <li
+                  key={worker.workerName}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-cream/40 px-4 py-2.5"
+                >
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-charcoal font-mono text-xs font-bold text-cream">
+                    {worker.workerName.slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="text-sm font-medium text-charcoal">
+                    {worker.workerName}
+                  </span>
+                  {index === 0 && workerLoad!.length > 1 && (
+                    <span className="rounded-md bg-rust/10 px-1.5 py-0.5 text-[11px] font-semibold text-rust">
+                      {t("Bottleneck")}
+                    </span>
+                  )}
+                  <div className="ml-auto flex w-40 items-center gap-2">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-border">
+                      <div
+                        className="h-full rounded-full bg-gold"
+                        style={{
+                          width: `${Math.round((worker.inProgressCount / maxLoad) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="w-6 text-right font-mono text-xs font-semibold text-charcoal">
+                      {worker.inProgressCount}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       {/* Error state */}
-      {error && (
+      {view === "board" && error && (
         <div className="rounded-xl border border-rust/30 bg-rust/10 px-6 py-4 text-sm text-rust">
           {error.message}
         </div>
       )}
 
       {/* Loading skeleton */}
-      {isLoading && (
+      {view === "board" && isLoading && (
         <div className="grid auto-cols-[220px] grid-flow-col gap-4 overflow-x-auto pb-2 md:auto-cols-[minmax(220px,1fr)]">
           {[0, 1, 2, 3].map((index) => (
             <div key={index} className="w-55 space-y-3">
@@ -186,13 +439,13 @@ export function PhaseBoardClient() {
       )}
 
       {/* Empty state */}
-      {!isLoading && !error && filteredOrders.length === 0 && (
+      {view === "board" && !isLoading && !error && filteredOrders.length === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-white/60 px-6 py-14 text-center text-sm text-muted-foreground">
           {t("No work orders in progress right now.")}
         </div>
       )}
 {/* Kanban-style phase columns */}
-      {!isLoading && !error && filteredOrders.length > 0 && (
+      {view === "board" && !isLoading && !error && filteredOrders.length > 0 && (
         <div className="grid auto-cols-[230px] grid-flow-col gap-4 overflow-x-auto pb-4 md:auto-cols-[minmax(230px,1fr)]">
           {columns.map((columnName) => {
             const cardOrders = cardsByColumn.get(columnName) ?? [];
@@ -258,6 +511,76 @@ export function PhaseBoardClient() {
             );
           })}
         </div>
+      )}
+      {/* Completed history (#18) — review finished orders and undo mistakes */}
+      {view === "board" && showCompleted && (
+        <section className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-border">
+          <h2 className="text-lg font-semibold text-charcoal">
+            {t("Completed orders")}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("Mistaken completion? Re-open the phase and it returns to the board.")}
+          </p>
+          {completedLoading ? (
+            <div className="mt-4 space-y-2">
+              {[0, 1, 2].map((index) => (
+                <Skeleton key={index} className="h-10 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : (completedOrders?.length ?? 0) === 0 ? (
+            <p className="mt-4 rounded-lg border border-dashed border-border bg-white/60 px-4 py-6 text-center text-sm text-muted-foreground">
+              {t("No completed orders yet.")}
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {completedOrders!.map((order) => (
+                <li
+                  key={order.id}
+                  className="rounded-lg border border-border bg-cream/40 px-4 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-sm font-semibold text-charcoal">
+                      {order.batchNumber}
+                    </span>
+                    <span className="text-sm text-charcoal">
+                      {order.productType}
+                    </span>
+                    <span className="ml-auto font-mono text-xs text-muted-foreground">
+                      {order.quantity} {t("pcs")}
+                    </span>
+                  </div>
+                  <ul className="mt-2 space-y-1.5 border-t border-border pt-2">
+                    {order.phases.map((phase) => (
+                      <li
+                        key={phase.id}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <span className="grid size-5 shrink-0 place-items-center rounded-full bg-gold text-charcoal">
+                          ✓
+                        </span>
+                        <span className="text-charcoal">{phase.name}</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {phase.workerName ?? t("Unassigned")}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={undoingId === phase.id}
+                          onClick={() => handleUndoPhase(phase.id)}
+                          className="ml-auto h-7 gap-1 rounded-md px-2 text-xs"
+                        >
+                          <RotateCcw className="size-3" aria-hidden />
+                          {undoingId === phase.id ? t("Undoing…") : t("Undo")}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
     </div>
   );
