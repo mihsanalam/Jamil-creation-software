@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/lib/i18n";
+import { flushQueue, getQueueSize, queueRequest } from "@/lib/offline-queue";
 import { cn } from "@/lib/utils";
 
 // Shape returned by GET /api/work-orders/[id].
@@ -96,32 +97,42 @@ export function BatchDetailClient({ workOrderId }: { workOrderId: string }) {
 async function handleMarkComplete() {
     if (!activePhase) return;
 
+    const payload = {
+      status: "COMPLETED",
+      qtyOut: qtyOut.trim() === "" ? null : Number(qtyOut),
+      notes: notes.trim() === "" ? null : notes.trim(),
+    };
+
     setIsSaving(true);
     try {
       const response = await fetch(`/api/work-order-phases/${activePhase.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: "COMPLETED",
-          qtyOut: qtyOut.trim() === "" ? null : Number(qtyOut),
-          notes: notes.trim() === "" ? null : notes.trim(),
-        }),
+        body: JSON.stringify(payload),
       });
-      const payload = await response.json().catch(() => null);
+      const payloadBody = await response.json().catch(() => null);
       if (!response.ok) {
-        toast.error(payload?.message ?? t("Could not mark the phase complete."));
+        toast.error(payloadBody?.message ?? t("Could not mark the phase complete."));
         return;
       }
       await mutate();
       setQtyOut("");
       setNotes("");
       toast.success(
-        payload?.nextPhase
-          ? `"${activePhase.name}" ${t("complete")} — ${payload.nextPhase.name} ${t("started")}.`
+        payloadBody?.nextPhase
+          ? `"${activePhase.name}" ${t("complete")} — ${payloadBody.nextPhase.name} ${t("started")}.`
           : t("All phases complete — work order finished.")
       );
     } catch {
-      toast.error(t("Could not reach the server. Please check your connection."));
+      // Offline (#16): the shop floor lost the connection. Queue the status
+      // change in localStorage — it is retried automatically when the
+      // connection returns, so the operator does not lose the action.
+      queueRequest(`/api/work-order-phases/${activePhase.id}`, "PATCH", payload);
+      toast.warning(t("Offline mode"), {
+        description: t(
+          "Your changes are saved locally and will be sent when the connection returns."
+        ),
+      });
     } finally {
       setIsSaving(false);
     }
