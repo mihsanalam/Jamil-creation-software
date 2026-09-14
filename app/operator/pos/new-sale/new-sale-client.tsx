@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Camera, Check, ChevronDown, Loader2, ScanBarcode, Trash2, Search } from "lucide-react";
+import {
+  Camera,
+  Check,
+  ChevronDown,
+  Loader2,
+  ScanBarcode,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { BarcodeScannerDialog } from "@/components/shared/barcode-scanner-dialog";
@@ -116,31 +123,34 @@ export function NewSaleClient() {
   // offered in a dropdown. Arrow keys + Enter pick one; a real scan flow is
   // untouched. typeQuery is debounced so typing "lun" fires one request.
   const [typeQuery, setTypeQuery] = useState("");
-  const [typeaheadOpen, setTypeaheadOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
+  // Remembers the exact text the operator dismissed with Escape, so the
+  // dropdown stays closed until the input changes again. Set only from event
+  // handlers — never from an effect.
+  const [dismissedQuery, setDismissedQuery] = useState<string | null>(null);
+  // Openness is DERIVED from the input rather than mirrored through an effect:
+  // barcode-shaped input (JC-… or pure digits) goes through the scan flow,
+  // never the type-ahead; anything else with 2+ chars opens the dropdown.
+  const trimmedInput = barcodeInput.trim();
+  const looksLikeBarcode = /^jc-/i.test(trimmedInput) || /^\d+$/.test(trimmedInput);
+  const typeaheadOpen =
+    !looksLikeBarcode && trimmedInput.length >= 2 && dismissedQuery !== trimmedInput;
+  // typeQuery is debounced so typing "lun" fires one request. State updates
+  // happen inside the timer callback, not synchronously in the effect body.
   useEffect(() => {
-    const trimmed = barcodeInput.trim();
-    // Barcode-shaped input (JC-… or pure digits) goes through the scan flow,
-    // not the type-ahead. Anything else 2+ chars opens the dropdown.
-    const looksLikeBarcode = /^jc-/i.test(trimmed) || /^\d+$/.test(trimmed);
-    if (!looksLikeBarcode && trimmed.length >= 2) {
-      const timer = setTimeout(() => {
-        setTypeQuery(trimmed);
-        setTypeaheadOpen(true);
-        setHighlightIndex(0);
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-    setTypeQuery("");
-    setTypeaheadOpen(false);
-    return undefined;
-  }, [barcodeInput]);
+    if (!typeaheadOpen) return;
+    const timer = setTimeout(() => {
+      setTypeQuery(trimmedInput);
+      setHighlightIndex(0);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [typeaheadOpen, trimmedInput]);
 
   const {
     data: typeMatches,
     isLoading: typeMatchesLoading,
   } = useSWR<TypeLookupProduct[]>(
-    typeQuery.length >= 2
+    typeaheadOpen && typeQuery.length >= 2
       ? `/api/finished-products/lookup-by-type?type=${encodeURIComponent(typeQuery)}`
       : null,
     fetcher<TypeLookupProduct[]>
@@ -253,7 +263,9 @@ export function NewSaleClient() {
       },
     ]);
     setBarcodeInput("");
-    setTypeaheadOpen(false);
+    // The input is now empty, so the derived typeaheadOpen is already false;
+    // just forget any Escape dismissal so re-typing the same text re-opens.
+    setDismissedQuery(null);
     barcodeInputRef.current?.focus();
     return true;
   }
@@ -355,7 +367,9 @@ export function NewSaleClient() {
       }
       if (event.key === "Escape") {
         event.preventDefault();
-        setTypeaheadOpen(false);
+        // Keep the typed text but close the dropdown; typing anything
+        // different re-opens it (derived from the input, no effect needed).
+        setDismissedQuery(trimmedInput);
         return;
       }
     }

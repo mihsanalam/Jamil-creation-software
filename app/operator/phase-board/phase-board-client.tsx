@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import {
-  AlertCircle,
-  Clock,
   History,
   Layers,
   RotateCcw,
@@ -179,7 +177,10 @@ export function PhaseBoardClient() {
   // still pending a banner shows the count with a manual retry button.
   const [pendingCount, setPendingCount] = useState(0);
   useEffect(() => {
-    setPendingCount(getQueueSize());
+    // Sync the banner count from localStorage in a microtask callback —
+    // localStorage is an external system, and updating state from it
+    // synchronously in the effect body would cascade renders.
+    Promise.resolve().then(() => setPendingCount(getQueueSize()));
     if (getQueueSize() === 0) return;
     void flushQueue().then((sent) => {
       setPendingCount(getQueueSize());
