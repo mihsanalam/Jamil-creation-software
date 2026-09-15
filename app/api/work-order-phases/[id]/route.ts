@@ -3,6 +3,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 
 // A phase row plus the work order it belongs to (for cascade decisions).
 interface PhaseRow extends RowDataPacket {
@@ -262,6 +263,24 @@ export async function PATCH(
     }
 
     await connection.commit();
+
+    // Audit trail: record the phase change (who, what, when).
+    await logAudit({
+      actorId: session.user.id,
+      actorName: session.user.name ?? "unknown",
+      action: isMarkingComplete ? "PHASE_COMPLETE" : "PHASE_UPDATE",
+      entityType: "work_order_phase",
+      entityId: id,
+      details: {
+        workOrderId: phase.work_order_id,
+        phaseName: phase.name,
+        stepOrder: phase.step_order,
+        fromStatus: phase.status,
+        toStatus: hasStatus ? body.status : undefined,
+        nextPhaseStartedId: nextPhase?.id ?? null,
+        workOrderCompleted: !nextPhase && isMarkingComplete,
+      },
+    });
 
     // Re-read the updated phase to return the persisted state.
     const [updatedRows] = await db.query<PhaseRow[]>(

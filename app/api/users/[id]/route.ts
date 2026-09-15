@@ -3,6 +3,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 import type { UserRole } from "@/types/next-auth";
 
 // A row from the users table. password_hash is deliberately NEVER selected.
@@ -117,6 +118,22 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    // Audit trail: record exactly which fields the Owner changed.
+    await logAudit({
+      actorId: session.user.id,
+      actorName: session.user.name ?? "unknown",
+      action: "USER_UPDATE",
+      entityType: "user",
+      entityId: id,
+      details: {
+        targetEmail: user.email,
+        changes: {
+          ...(name !== null ? { name } : {}),
+          ...(status !== null ? { status } : {}),
+        },
+      },
+    });
 
     return NextResponse.json({
       id: user.id,

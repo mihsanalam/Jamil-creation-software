@@ -3,6 +3,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 
 interface PhaseRow extends RowDataPacket {
   id: string;
@@ -127,6 +128,21 @@ export async function POST(
     }
 
     await connection.commit();
+
+    // Audit trail: record the undo (a destructive re-open).
+    await logAudit({
+      actorId: session.user.id,
+      actorName: session.user.name ?? "unknown",
+      action: "PHASE_UNDO",
+      entityType: "work_order_phase",
+      entityId: id,
+      details: {
+        workOrderId: phase.work_order_id,
+        phaseName: phase.name,
+        stepOrder: phase.step_order,
+        reopenedPhases: afterRows.length,
+      },
+    });
 
     const [updatedRows] = await db.query<PhaseRow[]>(
       `SELECT p.id, p.work_order_id, p.name, p.step_order, p.status,

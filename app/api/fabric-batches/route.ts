@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { isValidFabricImageUrl } from "@/lib/cloudinary";
+import { logAudit } from "@/lib/audit";
 
 // Shape of an existing row we care about when generating the next number
 interface BatchNumberRow extends RowDataPacket {
@@ -373,6 +374,23 @@ export async function POST(request: Request) {
         throw error;
       }
     }
+
+    // Audit trail: record the new batch.
+    await logAudit({
+      actorId: session.user.id,
+      actorName: session.user.name ?? "unknown",
+      action: "BATCH_CREATE",
+      entityType: "fabric_batch",
+      entityId: id,
+      details: {
+        batchNumber,
+        fabricType,
+        quantity,
+        unit,
+        supplier,
+        dateReceived,
+      },
+    });
 
     return NextResponse.json(
       {

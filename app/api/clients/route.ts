@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 
 // A client row with its aggregated purchase stats (from the LEFT JOIN).
 interface ClientRow extends RowDataPacket {
@@ -132,6 +133,16 @@ export async function POST(request: Request) {
        VALUES (?, ?, ?, ?, ?)`,
       [id, name, phone, address, type]
     );
+
+    // Audit trail: a new client record was created.
+    await logAudit({
+      actorId: session.user.id,
+      actorName: session.user.name ?? "unknown",
+      action: "CLIENT_CREATE",
+      entityType: "client",
+      entityId: id,
+      details: { name, phone, type },
+    });
 
     return NextResponse.json(
       {

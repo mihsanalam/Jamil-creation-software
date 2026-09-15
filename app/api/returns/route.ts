@@ -4,6 +4,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 
 // The sale_items row being returned, joined with its product.
 interface SaleItemRow extends RowDataPacket {
@@ -133,6 +134,16 @@ export async function POST(request: Request) {
     );
 
     await connection.commit();
+
+    // Audit trail: a return restores stock — record it.
+    await logAudit({
+      actorId: session.user.id,
+      actorName: session.user.name ?? "unknown",
+      action: "RETURN_RECORD",
+      entityType: "return",
+      entityId: id,
+      details: { saleItemId, quantity, reason },
+    });
   } catch (error) {
     await connection.rollback();
     console.error("Failed to record return:", error);

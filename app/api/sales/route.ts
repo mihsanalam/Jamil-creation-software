@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 
 // One cart line as sent by the POS screen.
 interface SaleItemInput {
@@ -165,6 +166,7 @@ export async function POST(request: Request) {
 
   const connection = await db.getConnection();
   let saleId = "";
+  let invoiceNumber = "";
   try {
     // Retry loop: a duplicate invoice number (two concurrent sales picking
     // the same XXXX) re-runs the whole transaction with the next number.
@@ -235,7 +237,8 @@ export async function POST(request: Request) {
         const lastNumber = invoiceRows[0]
           ? parseInt(invoiceRows[0].invoice_number.slice(prefix.length), 10)
           : 0;
-        const invoiceNumber = `${prefix}${String(lastNumber + 1).padStart(4, "0")}`;
+        const invoiceNumberGenerated = `${prefix}${String(lastNumber + 1).padStart(4, "0")}`;
+        invoiceNumber = invoiceNumberGenerated;
 
         // Insert the sale.
         saleId = randomUUID();
@@ -311,6 +314,26 @@ export async function POST(request: Request) {
         throw error;
       }
     }
+
+    // Audit trail: record the completed sale.
+    await logAudit({
+      actorId: session.user.id,
+      actorName: session.user.name ?? "unknown",
+      action: "SALE_CREATE",
+      entityType: "sale",
+      entityId: saleId,
+      details: {
+        invoiceNumber,
+        clientId,
+        subtotal,
+        discount,
+        total,
+        amountPaid,
+        paymentMethod,
+        paymentStatus,
+        itemCount: items.length,
+      },
+    });
 
     return NextResponse.json(
       {

@@ -6,6 +6,7 @@ import {
   BarChart3,
   Boxes,
   ClipboardList,
+  History,
   LayoutDashboard,
   Menu,
   PackagePlus,
@@ -47,6 +48,7 @@ const NAV_BY_ROLE: Record<UserRole, { subtitle: string; items: NavItem[] }> = {
       { label: "Reports", href: "/owner/reports", key: "reports", icon: ReceiptText },
       { label: "Sales & Dues", href: "/owner/sales-dues", key: "sales-dues", icon: Wallet },
       { label: "Users", href: "/owner/users", key: "users", icon: Users2 },
+      { label: "Audit Log", href: "/owner/audit-log", key: "audit-log", icon: History },
     ],
   },
   COLLECTOR: {

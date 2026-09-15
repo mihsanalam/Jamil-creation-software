@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { isValidFabricImageUrl } from "@/lib/cloudinary";
+import { logAudit } from "@/lib/audit";
 
 interface BatchRow extends RowDataPacket {
   id: string;
@@ -83,6 +84,16 @@ export async function PATCH(
         `UPDATE fabric_batches SET image_url = ? WHERE id = ?`,
         [imageUrl, id]
       );
+
+      // Audit trail: the batch photo changed.
+      await logAudit({
+        actorId: session.user.id,
+        actorName: session.user.name ?? "unknown",
+        action: "BATCH_PHOTO_UPDATE",
+        entityType: "fabric_batch",
+        entityId: id,
+        details: { batchNumber: existing[0].batch_number, imageUrl },
+      });
 
       return NextResponse.json({
         id,

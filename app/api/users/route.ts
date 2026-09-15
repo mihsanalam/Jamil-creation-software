@@ -5,6 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 import type { UserRole } from "@/types/next-auth";
 
 // A row from the users table. password_hash is deliberately NEVER selected —
@@ -145,6 +146,16 @@ export async function POST(request: Request) {
        VALUES (?, ?, ?, ?, ?, 'ACTIVE')`,
       [id, name, email, passwordHash, role]
     );
+
+    // Audit trail: a new account was created.
+    await logAudit({
+      actorId: session.user.id,
+      actorName: session.user.name ?? "unknown",
+      action: "USER_CREATE",
+      entityType: "user",
+      entityId: id,
+      details: { name, email, role },
+    });
 
     return NextResponse.json(
       {

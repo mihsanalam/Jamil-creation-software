@@ -4,6 +4,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 
 // One line the client is returning.
 interface ReturnLineInput {
@@ -315,6 +316,23 @@ export async function POST(request: Request) {
     }
 
     await connection.commit();
+
+    // Audit trail: record the whole return/exchange session.
+    await logAudit({
+      actorId: session.user.id,
+      actorName: session.user.name ?? "unknown",
+      action: "RETURN_BATCH_RECORD",
+      entityType: "return_batch",
+      entityId: batchId,
+      details: {
+        saleId,
+        returnedLines: items.length,
+        exchangedLines: exchanges.length,
+        cashback: handedCashback,
+        dueCredit,
+        notes,
+      },
+    });
   } catch (error) {
     await connection.rollback();
     console.error("Failed to record return batch:", error);

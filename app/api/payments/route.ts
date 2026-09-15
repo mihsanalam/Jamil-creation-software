@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 
 // A minimal client row used to confirm the client exists.
 interface ClientRow extends RowDataPacket {
@@ -267,6 +268,16 @@ export async function POST(request: Request) {
     );
 
     await connection.commit();
+
+    // Audit trail: money moved — always worth recording.
+    await logAudit({
+      actorId: session.user.id,
+      actorName: session.user.name ?? "unknown",
+      action: "PAYMENT_RECORD",
+      entityType: "payment",
+      entityId: paymentId,
+      details: { clientId, saleId, amount, method, sales: updatedSales },
+    });
 
     return NextResponse.json(
       {
