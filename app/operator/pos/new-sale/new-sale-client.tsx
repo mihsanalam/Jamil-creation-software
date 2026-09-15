@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/lib/i18n";
+import { computeSaleTotals } from "@/lib/sales-totals";
 import { cn } from "@/lib/utils";
 
 // Client option in the picker (from GET /api/clients).
@@ -220,12 +221,16 @@ export function NewSaleClient() {
       ? clients.find((client) => client.id === clientParam) ?? null
       : null);
 
-  const subtotal = cart.reduce(
-    (sum, item) => sum + item.quantity * (Number(item.unitPrice) || 0),
-    0
-  );
+  // Money math is shared with POST /api/sales via lib/sales-totals.ts, so the
+  // totals shown here are exactly what gets stored.
   const discount = Number(discountInput) || 0;
-  const total = Math.max(subtotal - discount, 0);
+  const { subtotal, total } = computeSaleTotals(
+    cart.map((item) => ({
+      quantity: item.quantity,
+      unitPrice: Number(item.unitPrice) || 0,
+    })),
+    discount
+  );
   const amountPaid = payMode === "FULL" ? total : Number(amountPaidInput) || 0;
 
   // On a failed/duplicate scan keep the scanned text visible (so the operator

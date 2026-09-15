@@ -5,6 +5,13 @@ import { randomUUID } from "crypto";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { invoiceNumberPrefix, nextNumber } from "@/lib/numbering";
+import {
+  computeSaleTotals,
+  derivePaymentStatus,
+  lineTotal,
+  round2,
+} from "@/lib/sales-totals";
 
 // One cart line as sent by the POS screen.
 interface SaleItemInput {
@@ -38,10 +45,6 @@ function isDuplicateKeyError(error: unknown) {
     "code" in error &&
     (error as { code?: string }).code === "ER_DUP_ENTRY"
   );
-}
-
-function round2(value: number) {
-  return Math.round(value * 100) / 100;
 }
 
 /**
@@ -157,12 +160,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const subtotal = round2(
-    items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
-  );
-  const total = Math.max(round2(subtotal - discount), 0);
-  const paymentStatus =
-    amountPaid >= total ? "PAID" : amountPaid > 0 ? "PARTIAL" : "DUE";
+  // Money math lives in lib/sales-totals.ts so the POS preview and this route
+  // can never disagree (unit tested).
+  const { subtotal, total } = computeSaleTotals(items, discount);
+  const paymentStatus = derivePaymentStatus(amountPaid, total);
 
   const connection = await db.getConnection();
   let saleId = "";
@@ -225,7 +226,7 @@ export async function POST(request: Request) {
         }
 
         // Generate the next invoice number for this year, atomically.
-        const prefix = `INV-${new Date().getFullYear()}-`;
+        const prefix = invoiceNumberPrefix(new Date().getFullYear());
         const [invoiceRows] = await connection.query<InvoiceRow[]>(
           `SELECT invoice_number FROM sales
            WHERE invoice_number LIKE ?
@@ -234,10 +235,10 @@ export async function POST(request: Request) {
            FOR UPDATE`,
           [`${prefix}%`]
         );
-        const lastNumber = invoiceRows[0]
-          ? parseInt(invoiceRows[0].invoice_number.slice(prefix.length), 10)
-          : 0;
-        const invoiceNumberGenerated = `${prefix}${String(lastNumber + 1).padStart(4, "0")}`;
+        const invoiceNumberGenerated = nextNumber(
+          prefix,
+          invoiceRows[0]?.invoice_number
+        );
         invoiceNumber = invoiceNumberGenerated;
 
         // Insert the sale.
@@ -275,7 +276,7 @@ export async function POST(request: Request) {
               item.finishedProductId,
               item.quantity,
               item.unitPrice,
-              round2(item.quantity * item.unitPrice),
+              lineTotal(item.quantity, item.unitPrice),
             ]
           );
           await connection.query<ResultSetHeader>(

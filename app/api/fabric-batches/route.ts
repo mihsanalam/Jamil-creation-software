@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { isValidFabricImageUrl } from "@/lib/cloudinary";
 import { logAudit } from "@/lib/audit";
+import { batchNumberPrefix, nextNumber } from "@/lib/numbering";
 
 // Shape of an existing row we care about when generating the next number
 interface BatchNumberRow extends RowDataPacket {
@@ -308,12 +309,11 @@ export async function POST(request: Request) {
       : new Date().toISOString().slice(0, 10);
 
   // Generate the next sequential batch number atomically: lock matching rows,
-  // read this year's highest suffix, and increment it (zero-padded to 4 digits).
-  // batch_number has a UNIQUE index, so even if two requests somehow pick the
-  // same number (e.g. first batch of a year), the DB rejects the second and we
-  // simply retry with the next number.
-  const year = new Date().getFullYear();
-  const prefix = `FB-${year}-`;
+  // read this year's highest suffix, and increment it. The pure formatting
+  // lives in lib/numbering.ts (unit tested); batch_number has a UNIQUE index,
+  // so even if two requests somehow pick the same number (e.g. first batch of
+  // a year), the DB rejects the second and we simply retry with the next one.
+  const prefix = batchNumberPrefix(new Date().getFullYear());
   const connection = await db.getConnection();
 
   try {
@@ -335,11 +335,7 @@ export async function POST(request: Request) {
           [`${prefix}%`]
         );
 
-        const lastNumber = existing[0]
-          ? parseInt(existing[0].batch_number.slice(prefix.length), 10)
-          : 0;
-        const nextNumber = String(lastNumber + 1).padStart(4, "0");
-        batchNumber = `${prefix}${nextNumber}`;
+        batchNumber = nextNumber(prefix, existing[0]?.batch_number);
 
         id = randomUUID();
         await connection.query(
