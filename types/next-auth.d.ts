@@ -16,6 +16,11 @@ declare module "next-auth" {
   interface User {
     id?: string;
     role?: UserRole;
+    /**
+     * users.session_version at sign-in (Tier 4). Copied into the JWT so a
+     * password change can invalidate this session — see auth.ts.
+     */
+    sessionVersion?: number;
   }
 }
 
@@ -23,5 +28,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: UserRole;
+    /** Version of users.session_version this token was issued with. */
+    sessionVersion: number;
   }
 }

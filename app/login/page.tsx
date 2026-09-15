@@ -15,6 +15,23 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { LOCKOUT_MINUTES, MAX_FAILED_ATTEMPTS } from "@/lib/login-policy";
+
+/**
+ * Maps the `code` NextAuth puts on the sign-in response to a message the user
+ * can act on (Tier 4). Anything unrecognised falls back to the generic
+ * "invalid email or password" so we never leak whether an account exists.
+ */
+function messageForCode(code: string | undefined): string {
+  switch (code) {
+    case "locked":
+      return `Too many failed attempts. Try again in ${LOCKOUT_MINUTES} minutes.`;
+    case "inactive":
+      return "This account has been deactivated. Ask the owner to reactivate it.";
+    default:
+      return "Invalid email or password";
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,7 +53,7 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Invalid email or password");
+        setError(messageForCode(result.code));
         return;
       }
 
@@ -90,6 +107,13 @@ export default function LoginPage() {
                 {error}
               </p>
             )}
+
+            {/* Brute-force protection is on; say so before they start guessing
+                (the exact numbers come from lib/login-policy.ts so the policy
+                has one source of truth). */}
+            <p className="text-xs text-muted-foreground">
+              {`After ${MAX_FAILED_ATTEMPTS} failed attempts the account is locked for ${LOCKOUT_MINUTES} minutes.`}
+            </p>
 
             <Button
               type="submit"

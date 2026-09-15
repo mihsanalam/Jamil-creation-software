@@ -7,6 +7,7 @@ import {
   Boxes,
   ClipboardList,
   History,
+  KeyRound,
   LayoutDashboard,
   Menu,
   PackagePlus,
@@ -23,6 +24,7 @@ import {
 
 import { LanguageToggle } from "@/components/shared/language-toggle";
 import { SignOutButton } from "@/components/shared/sign-out-button";
+import { SystemStatus } from "@/components/shared/system-status";
 import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types/next-auth";
@@ -35,6 +37,12 @@ interface NavItem {
   /** Value that pages pass as `activeRoute` to highlight this item. */
   key: string;
   icon: LucideIcon;
+  /**
+   * Renders the item in a muted, secondary style (used for "Account" so it
+   * stays visible without competing with the day-to-day work items). Optional
+   * — omit for a normal item.
+   */
+  muted?: boolean;
 }
 
 // Nav per role — mirrors the pages under each role's route prefix.
@@ -49,6 +57,7 @@ const NAV_BY_ROLE: Record<UserRole, { subtitle: string; items: NavItem[] }> = {
       { label: "Sales & Dues", href: "/owner/sales-dues", key: "sales-dues", icon: Wallet },
       { label: "Users", href: "/owner/users", key: "users", icon: Users2 },
       { label: "Audit Log", href: "/owner/audit-log", key: "audit-log", icon: History },
+      { label: "My Account", href: "/account/password", key: "account", icon: KeyRound, muted: true },
     ],
   },
   COLLECTOR: {
@@ -58,6 +67,7 @@ const NAV_BY_ROLE: Record<UserRole, { subtitle: string; items: NavItem[] }> = {
       { label: "Batch List", href: "/collector/batch-list", key: "batch-list", icon: ScrollText },
       { label: "Finished Goods Intake", href: "/collector/finished-goods", key: "finished-goods", icon: Boxes },
       { label: "Stock Search", href: "/collector/warehouse-search", key: "warehouse-search", icon: Warehouse },
+      { label: "My Account", href: "/account/password", key: "account", icon: KeyRound, muted: true },
     ],
   },
   OPERATOR: {
@@ -69,6 +79,7 @@ const NAV_BY_ROLE: Record<UserRole, { subtitle: string; items: NavItem[] }> = {
       { label: "Return", href: "/operator/pos/return", key: "return", icon: RotateCcw },
       { label: "Clients", href: "/operator/pos/clients", key: "clients", icon: Users2 },
       { label: "Due Collection", href: "/operator/pos/due-collection", key: "due-collection", icon: ReceiptText },
+      { label: "My Account", href: "/account/password", key: "account", icon: KeyRound, muted: true },
     ],
   },
 };
@@ -98,7 +109,7 @@ function NavList({
 
   return (
     <nav aria-label="Main" className="flex flex-1 flex-col gap-1 overflow-y-auto">
-      {items.map(({ label, href, key, icon: Icon }) => {
+      {items.map(({ label, href, key, icon: Icon, muted }) => {
         const isActive = key === activeRoute;
         return (
           <Link
@@ -110,7 +121,9 @@ function NavList({
               "flex items-center gap-3 border-l-[3px] px-4 py-2.5 text-sm transition-colors",
               isActive
                 ? "border-gold bg-charcoal/70 font-semibold text-gold"
-                : "border-transparent text-cream/70 hover:bg-charcoal/70 hover:text-cream"
+                : muted
+                  ? "border-transparent text-cream/50 hover:bg-charcoal/70 hover:text-cream"
+                  : "border-transparent text-cream/70 hover:bg-charcoal/70 hover:text-cream"
             )}
           >
             <Icon className="size-4 shrink-0" aria-hidden />
@@ -219,6 +232,7 @@ export function Sidebar({ role, activeRoute }: SidebarProps) {
           />
 
           <div className="mt-auto border-t border-charcoal/40 px-3 pt-4">
+            <SystemStatus />
             <LanguageToggle />
             <SignOutButton />
           </div>
@@ -239,6 +253,7 @@ export function Sidebar({ role, activeRoute }: SidebarProps) {
         <NavList items={items} activeRoute={activeRoute} />
 
         <div className="mt-auto border-t border-charcoal/40 px-3 pt-4">
+          <SystemStatus />
           <LanguageToggle />
           <SignOutButton />
         </div>
