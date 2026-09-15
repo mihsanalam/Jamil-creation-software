@@ -77,7 +77,7 @@ export async function GET(request: Request) {
   let offset = 0;
   const limitRaw = searchParams.get("limit")?.trim();
   const offsetRaw = searchParams.get("offset")?.trim();
-  if (limitRaw !== null && limitRaw !== "") {
+  if (limitRaw != null && limitRaw !== "") {
     limit = Number(limitRaw);
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
       return NextResponse.json(
@@ -88,7 +88,7 @@ export async function GET(request: Request) {
       );
     }
   }
-  if (offsetRaw !== null && offsetRaw !== "") {
+  if (offsetRaw != null && offsetRaw !== "") {
     offset = Number(offsetRaw);
     if (!Number.isInteger(offset) || offset < 0) {
       return NextResponse.json(
