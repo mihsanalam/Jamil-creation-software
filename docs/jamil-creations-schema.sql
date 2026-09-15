@@ -12,13 +12,17 @@ USE jamilcreations;
 -- ============================================
 
 CREATE TABLE users (
-  id             VARCHAR(36) PRIMARY KEY,
-  name           VARCHAR(255) NOT NULL,
-  email          VARCHAR(255) NOT NULL UNIQUE,
-  password_hash  VARCHAR(255) NOT NULL,
-  role           ENUM('OWNER','COLLECTOR','OPERATOR') NOT NULL,
-  status         ENUM('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',
-  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  id              VARCHAR(36) PRIMARY KEY,
+  name            VARCHAR(255) NOT NULL,
+  email           VARCHAR(255) NOT NULL UNIQUE,
+  password_hash   VARCHAR(255) NOT NULL,
+  role            ENUM('OWNER','COLLECTOR','OPERATOR') NOT NULL,
+  status          ENUM('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+  -- Bumped on every password change/reset. The JWT session carries the value
+  -- it was issued with; a mismatch forces every old session to log out
+  -- (see auth.ts jwt callback — Tier 4 session invalidation).
+  session_version INT NOT NULL DEFAULT 0,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================
@@ -39,6 +43,8 @@ CREATE TABLE fabric_batches (
   image_url       VARCHAR(500),           -- optional fabric photo under /uploads/fabric
   recorded_by_id  VARCHAR(36) NOT NULL,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   INDEX idx_fabric_batches_status (status),
+
   FOREIGN KEY (recorded_by_id) REFERENCES users(id)
 );
 
@@ -73,6 +79,8 @@ CREATE TABLE work_orders (
   status              ENUM('IN_PROGRESS','COMPLETED') NOT NULL DEFAULT 'IN_PROGRESS',
   created_by_id       VARCHAR(36) NOT NULL,
   created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   INDEX idx_work_orders_status (status),
+
   FOREIGN KEY (fabric_batch_id) REFERENCES fabric_batches(id),
   FOREIGN KEY (phase_template_id) REFERENCES phase_templates(id),
   FOREIGN KEY (created_by_id) REFERENCES users(id)
@@ -122,7 +130,8 @@ CREATE TABLE clients (
   phone       VARCHAR(50) NOT NULL,
   address     VARCHAR(255),
   type        ENUM('WHOLESALE','RETAIL') NOT NULL,
-  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_clients_phone (phone)
 );
 
 CREATE TABLE sales (
@@ -137,6 +146,8 @@ CREATE TABLE sales (
   payment_status  ENUM('PAID','PARTIAL','DUE') NOT NULL DEFAULT 'PAID',
   created_by_id   VARCHAR(36) NOT NULL,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   INDEX idx_sales_created_at (created_at),
+
   FOREIGN KEY (client_id) REFERENCES clients(id),
   FOREIGN KEY (created_by_id) REFERENCES users(id)
 );
@@ -232,4 +243,39 @@ CREATE TABLE app_settings (
   updated_by_id   VARCHAR(36) NOT NULL,
   updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (updated_by_id) REFERENCES users(id)
+);
+
+-- ============================================
+-- AUDIT LOG (Tier 4 — who changed what, when)
+-- One row per noteworthy mutation: phase status
+-- changes, user edits, password changes, sales,
+-- payments, returns, destructive actions.
+-- ============================================
+
+CREATE TABLE audit_logs (
+  id          VARCHAR(36) PRIMARY KEY,
+  actor_id    VARCHAR(36) NULL,            -- the signed-in user (null = system)
+  actor_name  VARCHAR(255) NOT NULL,       -- name snapshot (survives user deletion)
+  action      VARCHAR(50) NOT NULL,        -- e.g. 'PHASE_COMPLETE', 'PASSWORD_RESET'
+  entity_type VARCHAR(50) NOT NULL,        -- e.g. 'work_order_phase', 'user', 'sale'
+  entity_id   VARCHAR(36) NULL,            -- id of the affected row (when it has one)
+  details     TEXT NULL,                   -- JSON snapshot of what changed
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_audit_entity (entity_type, entity_id),
+  INDEX idx_audit_created_at (created_at),
+  FOREIGN KEY (actor_id) REFERENCES users(id)
+);
+
+-- ============================================
+-- LOGIN LOCKOUT (Tier 4 — brute-force protection)
+-- One row per email; failed_attempts counts
+-- consecutive failures, locked_until holds the
+-- temporary lockout window.
+-- ============================================
+
+CREATE TABLE login_attempts (
+  email           VARCHAR(255) PRIMARY KEY,
+  failed_attempts INT NOT NULL DEFAULT 0,
+  locked_until    DATETIME NULL,
+  last_attempt_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
