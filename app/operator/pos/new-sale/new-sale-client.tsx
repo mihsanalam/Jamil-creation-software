@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 
 import { BarcodeScannerDialog } from "@/components/shared/barcode-scanner-dialog";
+import { ProductPhotoThumb } from "@/components/shared/product-photo-thumb";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -51,6 +52,7 @@ interface LookupProduct {
   productType: string;
   batchNumber: string;
   storageLocation: string;
+  imageUrl: string | null;
 }
 
 // Product returned by GET /api/finished-products/lookup-by-type.
@@ -62,6 +64,7 @@ interface TypeLookupProduct {
   quantityRemaining: number;
   batchNumber: string;
   storageLocation: string;
+  imageUrl: string | null;
 }
 
 // One line in the cart. NOTE: there is no price list table yet, so the
@@ -76,6 +79,7 @@ interface CartItem {
   quantity: number;
   available: number;
   unitPrice: string;
+  imageUrl: string | null;
 }
 
 // SWR fetcher — throws on non-2xx so isLoading/error behave predictably.
@@ -247,7 +251,12 @@ export function NewSaleClient() {
   function addProductToCart(
     product: Pick<
       LookupProduct,
-      "id" | "barcode" | "productType" | "batchNumber" | "quantityRemaining"
+      | "id"
+      | "barcode"
+      | "productType"
+      | "batchNumber"
+      | "quantityRemaining"
+      | "imageUrl"
     >
   ) {
     if (cartRef.current.some((item) => item.productId === product.id)) {
@@ -264,6 +273,7 @@ export function NewSaleClient() {
         batchNumber: product.batchNumber,
         quantity: product.quantityRemaining,
         available: product.quantityRemaining,
+        imageUrl: product.imageUrl,
         unitPrice: "",
       },
     ]);
@@ -306,6 +316,7 @@ export function NewSaleClient() {
           productType: product.productType,
           batchNumber: product.batchNumber,
           quantityRemaining: product.quantityRemaining,
+          imageUrl: product.imageUrl,
         })
       ) {
         return;
@@ -399,6 +410,7 @@ export function NewSaleClient() {
       productType: product.productType,
       batchNumber: product.batchNumber,
       quantityRemaining: product.quantityRemaining,
+      imageUrl: product.imageUrl,
     });
   }
 
@@ -632,6 +644,10 @@ export function NewSaleClient() {
                           : "hover:bg-muted/40"
                       )}
                     >
+                      <ProductPhotoThumb
+                        imageUrl={product.imageUrl}
+                        alt={product.barcode}
+                      />
                       <span className="font-mono text-xs text-muted-foreground">
                         {product.barcode}
                       </span>
@@ -685,10 +701,18 @@ export function NewSaleClient() {
               {cart.map((item) => (
                 <tr key={item.productId} className="border-b last:border-0">
                   <td className="px-4 py-3">
-                    <p className="font-medium">{item.productType}</p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      {item.barcode} · {item.batchNumber}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <ProductPhotoThumb
+                        imageUrl={item.imageUrl}
+                        alt={item.barcode}
+                      />
+                      <div>
+                        <p className="font-medium">{item.productType}</p>
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {item.barcode} · {item.batchNumber}
+                        </p>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Input

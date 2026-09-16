@@ -158,6 +158,12 @@ const BN: Record<string, string> = {
   "Current phase:": "বর্তমান ফেজ:",
   "Change photo": "ছবি পরিবর্তন করুন",
   "Add photo": "ছবি যোগ করুন",
+  "Garment photo": "পোশাকের ছবি",
+  "Garment photo (optional)": "পোশাকের ছবি (ঐচ্ছিক)",
+  "Garment photo of": "পোশাকের ছবি —",
+  "Change / remove photo": "ছবি পরিবর্তন / সরান",
+  "Shown in the POS so clients can see what they are buying.":
+    "পিওএস-এ দেখানো হয় যাতে ক্রেতা যা কিনছেন তা দেখতে পারেন।",
   "Recorded at": "নিবন্ধনের সময়",
   "No description provided.": "কোনো বিবরণ দেওয়া হয়নি।",
   "No process notes provided.": "কোনো প্রসেস নোট দেওয়া হয়নি।",

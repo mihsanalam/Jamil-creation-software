@@ -13,6 +13,11 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { ProductPhotoThumb } from "@/components/shared/product-photo-thumb";
+import {
+  FinishedProductPhotoDialog,
+  type PhotoManagedProduct,
+} from "@/components/shared/finished-product-photo-dialog";
 import {
   Card,
   CardContent,
@@ -45,6 +50,7 @@ export interface FinishedProductRow {
   dateAdded: string;
   batchNumber: string;
   productType: string;
+  imageUrl: string | null;
 }
 
 // The full trace from GET /api/traceability/[finishedProductId].
@@ -55,6 +61,7 @@ export interface ProductTrace {
     quantity: number;
     quantityRemaining: number;
     status: "IN_STOCK" | "SOLD";
+    imageUrl: string | null;
   };
   productType: string;
   batch: {
@@ -165,12 +172,27 @@ export function TraceabilityClient() {
   );
 
   // The full trace for the selected product.
-  const { data: trace, error: traceError, isLoading: traceLoading } =
+  const { data: trace, error: traceError, isLoading: traceLoading, mutate: mutateTrace } =
     useSWR<ProductTrace>(
       selectedId ? `/api/traceability/${selectedId}` : null,
       fetcher<ProductTrace>,
       { keepPreviousData: true }
     );
+
+  // Owner can add/change/remove the garment photo from the summary card.
+  const [photoProduct, setPhotoProduct] = useState<PhotoManagedProduct | null>(
+    null
+  );
+
+  function handlePhotoUpdated(updated: { id: string; imageUrl: string | null }) {
+    if (
+      photoProduct &&
+      photoProduct.id === updated.id
+    ) {
+      setPhotoProduct({ ...photoProduct, imageUrl: updated.imageUrl });
+    }
+    void mutateTrace();
+  }
 
   function handleSelect(product: FinishedProductRow) {
     setSelectedId(product.id);
@@ -228,7 +250,21 @@ export function TraceabilityClient() {
 
           {!traceLoading && !traceError && trace && (
             <>
-              <TraceSummary trace={trace} />
+              <TraceSummary
+                trace={trace}
+                onEditPhoto={() =>
+                  setPhotoProduct({
+                    id: trace.product.id,
+                    barcode: trace.product.barcode,
+                    productType: trace.productType,
+                    batchNumber: trace.batch.batchNumber,
+                    quantityRemaining: trace.product.quantityRemaining,
+                    storageLocation: trace.storage.location,
+                    imageUrl: trace.product.imageUrl,
+                    status: trace.product.status,
+                  })
+                }
+              />
               <TraceStepper trace={trace} />
               <div className="grid gap-5 md:grid-cols-2">
                 <StorageCard trace={trace} />
@@ -306,14 +342,20 @@ export function TraceabilityClient() {
                       className="cursor-pointer hover:bg-gold/6"
                     >
                       <TableCell className="py-3.5 pl-6">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-mono text-sm font-semibold text-charcoal">
-                            {product.barcode}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {product.productType} ·{" "}
-                            <span className="font-mono">{product.batchNumber}</span>
-                          </span>
+                        <div className="flex items-center gap-3">
+                          <ProductPhotoThumb
+                            imageUrl={product.imageUrl}
+                            alt={product.barcode}
+                          />
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-mono text-sm font-semibold text-charcoal">
+                              {product.barcode}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {product.productType} ·{" "}
+                              <span className="font-mono">{product.batchNumber}</span>
+                            </span>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="py-3.5 font-mono text-charcoal">
@@ -336,11 +378,24 @@ export function TraceabilityClient() {
           )}
         </>
       )}
+
+      {/* Garment-photo manager — owner add/change/remove */}
+      <FinishedProductPhotoDialog
+        product={photoProduct}
+        onClose={() => setPhotoProduct(null)}
+        onUpdated={handlePhotoUpdated}
+      />
     </div>
   );
 }
 /** Summary card — the fabric batch this product came from. */
-function TraceSummary({ trace }: { trace: ProductTrace }) {
+function TraceSummary({
+  trace,
+  onEditPhoto,
+}: {
+  trace: ProductTrace;
+  onEditPhoto: () => void;
+}) {
   const { t } = useLanguage();
   return (
     <Card className="bg-white shadow-sm">
@@ -360,6 +415,24 @@ function TraceSummary({ trace }: { trace: ProductTrace }) {
         </Badge>
       </CardHeader>
       <CardContent className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Garment photo — click to add/change/remove (owner) */}
+        <div className="flex items-center gap-4 sm:col-span-2 lg:col-span-1">
+          <ProductPhotoThumb
+            imageUrl={trace.product.imageUrl}
+            alt={trace.product.barcode}
+            size={72}
+          />
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium text-charcoal">{t("Garment photo")}</p>
+            <button
+              type="button"
+              onClick={onEditPhoto}
+              className="text-left text-xs font-medium text-gold hover:underline"
+            >
+              {trace.product.imageUrl ? t("Change / remove photo") : t("Add photo")}
+            </button>
+          </div>
+        </div>
         <DetailRow label="Batch number" value={trace.batch.batchNumber} mono />
         <DetailRow label="Product type" value={trace.productType} />
         <DetailRow

@@ -21,6 +21,7 @@ interface ProductRow extends RowDataPacket {
   unit: string;
   supplier: string;
   date_received: Date;
+  image_url: string | null;
 }
 
 // One production phase row from work_order_phases.
@@ -65,7 +66,7 @@ export async function GET(
               fp.quantity_remaining, fp.storage_location, fp.status,
               fp.date_added, wo.product_type,
               fb.batch_number, fb.fabric_type, fb.quantity AS batch_quantity,
-              fb.unit, fb.supplier, fb.date_received
+              fb.unit, fb.supplier, fb.date_received, fp.image_url
        FROM finished_products fp
        JOIN work_orders wo ON wo.id = fp.work_order_id
        JOIN fabric_batches fb ON fb.id = wo.fabric_batch_id
@@ -120,6 +121,7 @@ export async function GET(
         quantity: Number(product.quantity),
         quantityRemaining: Number(product.quantity_remaining),
         status: product.status,
+        imageUrl: product.image_url,
       },
       productType: product.product_type,
       batch: {

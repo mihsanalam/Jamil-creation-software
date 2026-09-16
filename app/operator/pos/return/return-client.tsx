@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ProductPhotoThumb } from "@/components/shared/product-photo-thumb";
 import {
   Command,
   CommandEmpty,
@@ -73,6 +74,7 @@ interface LookupProduct {
   productType: string;
   batchNumber: string;
   storageLocation: string;
+  imageUrl: string | null;
 }
 
 // One exchange line the operator is giving the client.
@@ -84,6 +86,7 @@ interface ExchangeItem {
   quantity: number;
   available: number;
   unitPrice: string;
+  imageUrl: string | null;
 }
 
 async function fetcher<T>(url: string): Promise<T> {
@@ -242,6 +245,7 @@ export function ReturnClient() {
           quantity: 1,
           available: payload.quantityRemaining,
           unitPrice: "",
+          imageUrl: payload.imageUrl,
         },
       ]);
       return true;
@@ -678,10 +682,18 @@ export function ReturnClient() {
                     {exchanges.map((item) => (
                       <tr key={item.productId} className="border-b last:border-b-0">
                         <td className="px-3 py-3">
-                          <p className="font-medium text-charcoal">{item.productType}</p>
-                          <p className="font-mono text-xs text-muted-foreground">
-                            {item.barcode} · {item.batchNumber}
-                          </p>
+                          <div className="flex items-center gap-3">
+                            <ProductPhotoThumb
+                              imageUrl={item.imageUrl}
+                              alt={item.barcode}
+                            />
+                            <div>
+                              <p className="font-medium text-charcoal">{item.productType}</p>
+                              <p className="font-mono text-xs text-muted-foreground">
+                                {item.barcode} · {item.batchNumber}
+                              </p>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-3 py-3 text-center">
                           <Input

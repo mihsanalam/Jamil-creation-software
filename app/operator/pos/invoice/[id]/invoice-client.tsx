@@ -6,6 +6,7 @@ import { Loader2, Printer, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ProductPhotoThumb } from "@/components/shared/product-photo-thumb";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ interface InvoiceData {
     returnedQuantity: number;
     unitPrice: number;
     lineTotal: number;
+    imageUrl: string | null;
   }[];
 }
 
@@ -278,10 +280,18 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
               return (
                 <tr key={item.id} className="border-b">
                   <td className="px-3 py-3">
-                    <p className="font-medium">{item.productType}</p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      {item.barcode} · {item.batchNumber}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <ProductPhotoThumb
+                        imageUrl={item.imageUrl}
+                        alt={item.barcode}
+                      />
+                      <div>
+                        <p className="font-medium">{item.productType}</p>
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {item.barcode} · {item.batchNumber}
+                        </p>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-3 py-3 text-center">
                     {item.quantity}

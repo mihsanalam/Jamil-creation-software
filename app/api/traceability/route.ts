@@ -12,6 +12,7 @@ interface SearchRow extends RowDataPacket {
   quantity_remaining: string;
   batch_number: string;
   product_type: string;
+  image_url: string | null;
 }
 
 /**
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
 
     const [rows] = await db.query<SearchRow[]>(
       `SELECT fp.id, fp.barcode, fp.quantity, fp.quantity_remaining,
-              fb.batch_number, wo.product_type
+              fb.batch_number, wo.product_type, fp.image_url
        FROM finished_products fp
        JOIN work_orders wo ON wo.id = fp.work_order_id
        JOIN fabric_batches fb ON fb.id = wo.fabric_batch_id
@@ -63,6 +64,7 @@ export async function GET(request: Request) {
         productType: row.product_type,
         quantity: Number(row.quantity),
         quantityRemaining: Number(row.quantity_remaining),
+        imageUrl: row.image_url,
       }))
     );
   } catch (error) {
