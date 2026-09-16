@@ -3,6 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -135,6 +136,7 @@ function TypeBadge({ type }: { type: string }) {
 
 export function DueCollectionClient() {
   const { t } = useLanguage();
+  const router = useRouter();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientDueRow | null>(
     null
@@ -231,8 +233,19 @@ export function DueCollectionClient() {
         updatedDues?.invoices.reduce((sum, i) => sum + i.amountDue, 0) ?? 0;
       setAmountInput(toInputAmount(newTotal));
 
+      // Offer the printable money receipt (#28) straight from the success toast.
+      const paymentId: string | undefined = payload?.payment?.id;
       toast.success(
-        `${t("Payment of")} ${formatMoney(amount)} ${t("recorded for")} ${selectedClient.name}.`
+        `${t("Payment of")} ${formatMoney(amount)} ${t("recorded for")} ${selectedClient.name}.`,
+        paymentId
+          ? {
+              action: {
+                label: t("Print receipt"),
+                onClick: () =>
+                  router.push(`/operator/pos/money-receipt/${paymentId}`),
+              },
+            }
+          : undefined
       );
     } catch {
       toast.error(t("Could not reach the server. Please check your connection."));

@@ -745,6 +745,17 @@ const BN: Record<string, string> = {
   "Receipt footer note": "রসিদের ফুটার নোট",
   "Shown at the bottom of every printed invoice and money receipt.":
     "প্রতিটি প্রিন্ট করা ইনভয়েস ও মানি রসিদের নিচে দেখানো হয়।",
+  "Money receipt": "মানি রসিদ",
+  "Print receipt": "রসিদ প্রিন্ট করুন",
+  "Received from": "থেকে গৃহীত",
+  "Being payment received against": "এই বাবদ অর্থ গৃহীত:",
+  invoice: "ইনভয়েস",
+  "outstanding dues": "অপরিশোধিত বাকি",
+  "Balance due": "অবশিষ্ট বাকি",
+  "Nothing — fully settled": "কিছু নেই — সম্পূর্ণ পরিশোধিত",
+  "In words": "কথায়",
+  only: "মাত্র",
+  "Client signature": "ক্লায়েন্টের স্বাক্ষর",
 };
 
 interface LanguageContextValue {
