@@ -547,8 +547,8 @@ const BN: Record<string, string> = {
   "Fully returned": "সম্পূর্ণ ফেরত",
   "Return up to": "সর্বোচ্চ এত ফেরত করা যাবে:",
   "Record return": "রিটার্ন রেকর্ড করুন",
-  "Thank you for your business — Jamil Creations":
-    "আপনার ব্যবসার জন্য ধন্যবাদ — জামিল ক্রিয়েশনস",
+  "Thank you for your business":
+    "আপনার ব্যবসার জন্য ধন্যবাদ",
   "— the returned quantity goes back into stock. The invoice total is not changed; any refund is handled by the Owner.":
     "— ফেরত পরিমাণ আবার স্টকে যাবে। ইনভয়েসের মোট পরিবর্তন হবে না; ফেরত টাকা মালিক সামলাবেন।",
   "— up to": "— সর্বোচ্চ",

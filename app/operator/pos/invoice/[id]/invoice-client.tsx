@@ -22,6 +22,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
+// Shop profile from GET /api/settings — printed on the invoice (#28). The
+// fallbacks match the API defaults so the print never blocks on the fetch.
+interface ShopSettings {
+  shopName: string;
+  shopPhone: string;
+  receiptFooter: string;
+}
+
 // Sale payload returned by GET /api/sales/[id].
 interface InvoiceData {
   id: string;
@@ -86,6 +94,15 @@ function formatDate(value: string) {
 export function InvoiceClient({ saleId }: { saleId: string }) {
   const { t } = useLanguage();
   const [isPrinting, setIsPrinting] = useState(false);
+
+  // Shop profile (name / phone / footer) — Owner-configurable in Settings.
+  const { data: shopSettings } = useSWR<ShopSettings>(
+    "/api/settings",
+    fetcher<ShopSettings>
+  );
+  const shopName = shopSettings?.shopName ?? "Jamil Creations";
+  const shopPhone = shopSettings?.shopPhone ?? "";
+  const receiptFooter = shopSettings?.receiptFooter ?? "";
 
   // Record-return dialog state.
   const [returnItem, setReturnItem] = useState<InvoiceData["items"][number] | null>(null);
@@ -203,10 +220,15 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
         {/* Header row */}
         <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
           <div>
-            <p className="font-display text-2xl font-bold">Jamil Creations</p>
+            <p className="font-display text-2xl font-bold">{shopName}</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {t("Garments manufacturer & wholesaler")}
+              {receiptFooter}
             </p>
+            {shopPhone && (
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {t("Phone")}: {shopPhone}
+              </p>
+            )}
           </div>
           <div className="text-right">
             <p className="font-mono text-lg font-semibold">
@@ -372,7 +394,7 @@ export function InvoiceClient({ saleId }: { saleId: string }) {
         </div>
 
         <p className="mt-6 border-t pt-4 text-center text-xs text-muted-foreground">
-          {t("Thank you for your business — Jamil Creations")}
+          {t("Thank you for your business")} — {shopName}
         </p>
 
 
