@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { isBlockDueClientsEnabled } from "@/lib/app-settings";
 import { logAudit } from "@/lib/audit";
 import { invoiceNumberPrefix, nextNumber } from "@/lib/numbering";
 import {
@@ -164,6 +165,27 @@ export async function POST(request: Request) {
   // can never disagree (unit tested).
   const { subtotal, total } = computeSaleTotals(items, discount);
   const paymentStatus = derivePaymentStatus(amountPaid, total);
+
+  // #27 Policy: when the Owner enables "block credit sales to clients with
+  // dues", a new sale that wouldn't be fully paid (→ DUE/PARTIAL) is refused
+  // to a client who already owes money. Fully-paid sales are never blocked.
+  if (paymentStatus !== "PAID") {
+    const [dueRows] = await db.query<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(total - amount_paid), 0) AS outstanding_due
+       FROM sales WHERE client_id = ?`,
+      [clientId]
+    );
+    const outstandingDue = Number(dueRows[0]?.outstanding_due ?? 0);
+    if (outstandingDue > 0 && (await isBlockDueClientsEnabled())) {
+      return NextResponse.json(
+        {
+          message:
+            "This client has outstanding dues, and credit sales to due clients are blocked. Collect the dues (or take full payment) first.",
+        },
+        { status: 409 }
+      );
+    }
+  }
 
   const connection = await db.getConnection();
   let saleId = "";

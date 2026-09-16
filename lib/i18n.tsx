@@ -69,6 +69,11 @@ const BN: Record<string, string> = {
   PAID: "পরিশোধিত",
   PARTIAL: "আংশিক",
 
+  "Block credit sales to clients with dues": "যাদের বাকি আছে তাদের বাকিতে বিক্রি বন্ধ রাখুন",
+  "When on, a client with outstanding dues cannot make a new partially-paid sale. Full payments are always allowed.":
+    "চালু থাকলে যার বাকি আছে তাকে নতুন আংশিক পরিশোধের বিক্রি করা যাবে না। সম্পূর্ণ পরিশোধ সবসময় গ্রহণযোগ্য।",
+  "Settings saved": "সেটিংস সংরক্ষিত হয়েছে",
+
   // ── Shared words ─────────────────────────────────────────────────────
   All: "সব",
   Status: "স্ট্যাটাস",

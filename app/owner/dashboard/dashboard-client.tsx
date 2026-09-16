@@ -11,6 +11,7 @@ import {
   TriangleAlert,
   Wallet,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 import { MetricCard } from "@/components/shared/metric-card";
@@ -137,9 +138,11 @@ export function DashboardClient() {
     { refreshInterval: 10000, keepPreviousData: true }
   );
 
-  // Settings dialog — edits the bottleneck alert threshold (see /api/settings).
+  // Settings dialog — edits the bottleneck alert threshold and the
+  // block-DUE-clients policy (see /api/settings).
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInput, setSettingsInput] = useState("");
+  const [blockDueInput, setBlockDueInput] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   // Low-stock / aging-stock warnings (Tier 2 #9) — poll a bit slower than
@@ -154,13 +157,31 @@ export function DashboardClient() {
   });
   const stockAlertsList = stockAlerts?.alerts ?? [];
 
-  // Pre-fill the input from the last known summary value.
-  function openSettings() {
+  // Pre-fill the form from GET /api/settings (which carries both values with
+  // their defaults).
+  async function openSettings() {
     setSettingsInput(String(data?.bottleneckThreshold ?? 8));
+    setBlockDueInput(false);
     setSettingsOpen(true);
+    try {
+      const response = await fetch("/api/settings");
+      if (!response.ok) return;
+      const settings = (await response.json()) as {
+        bottleneckThreshold?: number;
+        blockDueClients?: boolean;
+      };
+      if (typeof settings.bottleneckThreshold === "number") {
+        setSettingsInput(String(settings.bottleneckThreshold));
+      }
+      if (typeof settings.blockDueClients === "boolean") {
+        setBlockDueInput(settings.blockDueClients);
+      }
+    } catch {
+      // The pre-filled defaults stay; the save attempt will surface errors.
+    }
   }
 
-  async function handleSaveThreshold(event: FormEvent) {
+  async function handleSaveSettings(event: FormEvent) {
     event.preventDefault();
     const value = Number(settingsInput);
     if (!Number.isInteger(value) || value < 1 || value > 100) {
@@ -175,7 +196,10 @@ export function DashboardClient() {
       const response = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bottleneckThreshold: value }),
+        body: JSON.stringify({
+          bottleneckThreshold: value,
+          blockDueClients: blockDueInput,
+        }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
@@ -184,7 +208,7 @@ export function DashboardClient() {
         );
         return;
       }
-      toast.success(t("Threshold saved"));
+      toast.success(t("Settings saved"));
       setSettingsOpen(false);
       // Refresh the summary so the pipeline banner reacts to the new value.
       mutate();
@@ -634,8 +658,8 @@ export function DashboardClient() {
             </DialogHeader>
           </div>
 
-          <form onSubmit={handleSaveThreshold}>
-            <div className="space-y-4 px-6 py-5">
+          <form onSubmit={handleSaveSettings}>
+            <div className="space-y-5 px-6 py-5">
               <div className="flex flex-col gap-2">
                 <Label
                   htmlFor="bottleneck-threshold"
@@ -655,6 +679,29 @@ export function DashboardClient() {
                   required
                   autoFocus
                   className="h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
+                />
+              </div>
+
+              {/* #27 Policy: refuse new credit sales to DUE clients. */}
+              <div className="flex items-start justify-between gap-4 rounded-lg border border-border bg-cream/40 p-3.5">
+                <div>
+                  <Label
+                    htmlFor="block-due-clients"
+                    className="text-sm font-semibold text-charcoal"
+                  >
+                    {t("Block credit sales to clients with dues")}
+                  </Label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t(
+                      "When on, a client with outstanding dues cannot make a new partially-paid sale. Full payments are always allowed."
+                    )}
+                  </p>
+                </div>
+                <Switch
+                  id="block-due-clients"
+                  checked={blockDueInput}
+                  onCheckedChange={(checked) => setBlockDueInput(checked)}
+                  className="mt-0.5 shrink-0"
                 />
               </div>
             </div>
