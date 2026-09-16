@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import useSWR from "swr";
-import { PackageSearch, Search } from "lucide-react";
+import { ImagePlus, PackageSearch, Search } from "lucide-react";
 
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useLanguage } from "@/lib/i18n";
+import { FinishedProductPhotoDialog } from "@/components/shared/finished-product-photo-dialog";
 
 // A finished product row from GET /api/finished-products.
 export interface FinishedProduct {
@@ -25,6 +27,7 @@ export interface FinishedProduct {
   quantity: number;
   quantityRemaining: number;
   storageLocation: string;
+  imageUrl: string | null;
   status: string;
   dateAdded: string;
   batchNumber: string;
@@ -54,6 +57,8 @@ export function WarehouseSearchClient() {
   const { t } = useLanguage();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [selectedProduct, setSelectedProduct] =
+    useState<FinishedProduct | null>(null);
 
   // Debounce the search box (~300ms) so typing doesn't fire a request per
   // keystroke; only update the actual query after the user pauses.
@@ -65,11 +70,19 @@ export function WarehouseSearchClient() {
   const query = new URLSearchParams();
   if (search) query.set("search", search);
 
-  const { data, error, isLoading } = useSWR<FinishedProduct[]>(
+  const { data, error, isLoading, mutate } = useSWR<FinishedProduct[]>(
     `/api/finished-products?${query.toString()}`,
     fetcher,
     { refreshInterval: 15000, keepPreviousData: true }
   );
+
+  // A photo add/change/remove from the dialog updates the row in place.
+  function handleProductUpdated(updated: { id: string; imageUrl: string | null }) {
+    if (selectedProduct && selectedProduct.id === updated.id) {
+      setSelectedProduct({ ...selectedProduct, imageUrl: updated.imageUrl });
+    }
+    void mutate();
+  }
 
   return (
     <div className="space-y-5">
@@ -130,6 +143,9 @@ export function WarehouseSearchClient() {
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="h-11 pl-6 text-xs font-semibold uppercase tracking-wider text-charcoal">
+                  {t("Photo")}
+                </TableHead>
+                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
                   {t("Product / batch number")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
@@ -148,8 +164,31 @@ export function WarehouseSearchClient() {
             </TableHeader>
             <TableBody>
               {data?.map((product) => (
-                <TableRow key={product.id} className="hover:bg-gold/6">
+                <TableRow
+                  key={product.id}
+                  onClick={() => setSelectedProduct(product)}
+                  title={`${t("Manage photo of")} ${product.barcode}`}
+                  className="cursor-pointer hover:bg-gold/6"
+                >
                   <TableCell className="py-3.5 pl-6">
+                    {product.imageUrl ? (
+                      <Image
+                        src={product.imageUrl}
+                        alt={`Garment photo for ${product.barcode}`}
+                        width={48}
+                        height={48}
+                        className="size-12 rounded-lg border border-border object-cover"
+                      />
+                    ) : (
+                      <span
+                        className="grid size-12 place-items-center rounded-lg border border-dashed border-border bg-muted/40 text-muted-foreground"
+                        aria-label={t("No garment photo")}
+                      >
+                        <ImagePlus className="size-5" aria-hidden />
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="py-3.5">
                     <div className="flex flex-col gap-0.5">
                       <span className="font-mono text-sm font-semibold text-charcoal">
                         {product.barcode}
@@ -178,6 +217,13 @@ export function WarehouseSearchClient() {
           </Table>
         </div>
       )}
+
+      {/* Photo manager — add/change/remove the garment photo */}
+      <FinishedProductPhotoDialog
+        product={selectedProduct}
+        onClose={() => setSelectedProduct(null)}
+        onUpdated={handleProductUpdated}
+      />
     </div>
   );
 }

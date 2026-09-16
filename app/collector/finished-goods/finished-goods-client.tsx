@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import useSWR from "swr";
 import QRCode from "qrcode";
 import { Check, ChevronDown, Loader2, Printer } from "lucide-react";
@@ -26,6 +26,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+
+// Must match the server-side limit in /api/uploads.
+const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+function clearPreview(url: string | null) {
+  if (url) URL.revokeObjectURL(url);
+}
 
 // A phase inside a ready work order (shape from GET /api/work-orders/ready).
 export interface ReadyOrderPhase {
@@ -63,6 +70,7 @@ export interface CreatedProduct {
   barcode: string;
   quantity: number;
   storageLocation: string;
+  imageUrl: string | null;
   status: string;
   dateAdded: string;
 }
@@ -114,6 +122,11 @@ export function FinishedGoodsClient() {
   const [isCreating, setIsCreating] = useState(false);
   const [createdProduct, setCreatedProduct] = useState<CreatedProduct | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  // Optional garment photo — kept as a File until intake, then uploaded via
+  // /api/uploads (folder "finished") so the product row can reference the URL.
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const {
     data: readyOrders,
@@ -132,6 +145,31 @@ export function FinishedGoodsClient() {
     setQrDataUrl(null);
   }
 
+  // Thumbnail preview on file select; the size is checked here too so the
+  // user learns about a too-large photo before waiting on an upload.
+  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) {
+      clearPhoto();
+      return;
+    }
+    if (file.size > PHOTO_MAX_BYTES) {
+      toast.error(t("Image is too large — the limit is 5 MB."));
+      event.target.value = "";
+      return;
+    }
+    clearPreview(photoPreview);
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  function clearPhoto() {
+    clearPreview(photoPreview);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }
+
   function handleStorageChange(value: string) {
     setStorageLocation(value);
     if (createdProduct) {
@@ -141,19 +179,43 @@ export function FinishedGoodsClient() {
   }
 
   // POST the work order to /api/finished-products (transaction generates the
-  // barcode, copies quantity, inserts the row). Returns the created product
-  // or null on failure; the QR data URL is stored for rendering the label.
+  // barcode, copies quantity, inserts the row). The garment photo (if any) is
+  // uploaded first via /api/uploads (folder "finished") so the product row
+  // can reference the saved URL. Returns the created product or null on
+  // failure; the QR data URL is stored for rendering the label.
   async function createProduct(): Promise<CreatedProduct | null> {
     if (!selectedOrder || storageLocation.trim() === "") return null;
 
     setIsCreating(true);
     try {
+      let imageUrl: string | null = null;
+      if (photoFile) {
+        const uploadForm = new FormData();
+        uploadForm.append("file", photoFile);
+        uploadForm.append("folder", "finished");
+        const uploadResponse = await fetch("/api/uploads", {
+          method: "POST",
+          body: uploadForm,
+        });
+        if (!uploadResponse.ok) {
+          const data = await uploadResponse.json().catch(() => null);
+          toast.error(
+            data?.message ?? t("Could not upload the garment photo.")
+          );
+          return null;
+        }
+        const uploadData = await uploadResponse.json().catch(() => null);
+        imageUrl =
+          typeof uploadData?.path === "string" ? uploadData.path : null;
+      }
+
       const response = await fetch("/api/finished-products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workOrderId: selectedOrder.id,
           storageLocation: storageLocation.trim(),
+          imageUrl,
         }),
       });
       const payload = await response.json().catch(() => null);
@@ -199,6 +261,7 @@ export function FinishedGoodsClient() {
     setStorageLocation("");
     setCreatedProduct(null);
     setQrDataUrl(null);
+    clearPhoto();
     setReadyOpen(false);
     mutate();
   }
@@ -386,9 +449,26 @@ export function FinishedGoodsClient() {
                 <Image
                   src={qrDataUrl}
                   alt={`QR code for barcode ${createdProduct.barcode}`}
+                  width={144}
+                  height={144}
+                  unoptimized
                   className="size-36"
                 />
               </div>
+              {createdProduct.imageUrl ? (
+                <div className="flex flex-col items-center gap-1.5">
+                  <Image
+                    src={createdProduct.imageUrl}
+                    alt={`Garment photo for ${createdProduct.barcode}`}
+                    width={144}
+                    height={144}
+                    className="size-36 rounded-lg border border-border object-cover"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {t("Garment photo saved.")}
+                  </span>
+                </div>
+              ) : null}
               <div className="text-center">
                 <p className="font-mono text-xl font-bold tracking-widest text-charcoal">
                   {createdProduct.barcode}
@@ -429,10 +509,57 @@ export function FinishedGoodsClient() {
             disabled={selectedOrder === null}
             className={FIELD}
           />
-          {selectedOrder === null && (
+          {selectedOrder === null ? (
             <p className="mt-2 text-xs text-muted-foreground">
               {t("Select a ready batch first.")}
             </p>
+          ) : (
+            <div className="mt-4 flex flex-col gap-2">
+              <Label
+                htmlFor="garment-photo"
+                className="text-sm font-semibold text-charcoal"
+              >
+                {t("Garment photo (optional)")}
+              </Label>
+              <div className="flex items-center gap-3">
+                {photoPreview ? (
+                  /* eslint-disable-next-line @next/next/no-img-element -- local blob preview, not a servable asset yet */
+                  <img
+                    src={photoPreview}
+                    alt="Selected garment photo preview"
+                    className="size-16 shrink-0 rounded-lg border border-border object-cover"
+                  />
+                ) : null}
+                <Input
+                  ref={photoInputRef}
+                  id="garment-photo"
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  disabled={createdProduct !== null}
+                  className={cn(
+                    FIELD,
+                    "file:mr-3 file:rounded-md file:border-0 file:bg-gold/15 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-charcoal hover:file:bg-gold/25"
+                  )}
+                />
+                {photoPreview ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={clearPhoto}
+                    disabled={createdProduct !== null}
+                    className="h-10 shrink-0 rounded-lg"
+                  >
+                    {t("Remove")}
+                  </Button>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "Shown in the POS so clients can see what they are buying."
+                )}
+              </p>
+            </div>
           )}
         </section>
       </div>
