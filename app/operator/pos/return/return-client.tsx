@@ -42,6 +42,7 @@ interface ClientOption {
   name: string;
   phone: string;
   type: string;
+  outstandingDue: number;
 }
 
 // Lightweight hit from GET /api/sales/lookup?number=...
@@ -468,6 +469,11 @@ export function ReturnClient() {
                             }}
                           >
                             <span className="font-medium">{client.name}</span>
+                            {client.outstandingDue > 0 && (
+                              <span className="ml-2 rounded-full bg-rust/15 px-2 py-0.5 text-[10px] font-semibold text-rust">
+                                {t("DUE")} {formatMoney(client.outstandingDue)}
+                              </span>
+                            )}
                             <span className="ml-auto text-xs text-muted-foreground">
                               {client.phone}
                             </span>

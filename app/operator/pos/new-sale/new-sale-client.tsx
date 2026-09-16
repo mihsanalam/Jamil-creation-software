@@ -45,6 +45,7 @@ interface ClientOption {
   name: string;
   phone: string;
   type: string;
+  outstandingDue: number;
 }
 
 // Snapshot returned by GET /api/clients/[id]/purchase-summary — drives the
@@ -608,6 +609,11 @@ export function NewSaleClient() {
                           )}
                         />
                         <span className="flex-1">{client.name}</span>
+                        {client.outstandingDue > 0 && (
+                          <span className="mr-2 rounded-full bg-rust/15 px-2 py-0.5 text-[10px] font-semibold text-rust">
+                            {t("DUE")} {formatMoney(client.outstandingDue)}
+                          </span>
+                        )}
                         <span className="text-xs text-muted-foreground">
                           {client.phone} ·{" "}
                           {t(client.type === "WHOLESALE" ? "Wholesale" : "Retail")}
