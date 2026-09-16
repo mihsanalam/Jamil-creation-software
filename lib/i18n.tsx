@@ -725,6 +725,13 @@ const BN: Record<string, string> = {
   "Batch traceability": "ব্যাচ ট্রেসেবিলিটি",
   "Pick a finished batch below (or search for it) to trace it back to its original fabric, every production phase, and the sale that sent it out.":
     "নিচে একটি সমাপ্ত ব্যাচ নির্বাচন করুন (বা খুঁজুন) — এর মূল কাপড়, প্রতিটি উৎপাদন ধাপ এবং যে বিক্রয়ে বেরিয়ে গেছে তা দেখুন।",
+  "Client history": "ক্লায়েন্টের হিসাব",
+  "Last purchases": "সর্বশেষ কেনাকাটা",
+  "No purchases yet": "এখনো কেনা হয়নি",
+  "Total dues": "মোট বাকি",
+  "unpaid invoices": "অপরিশোধিত ইনভয়েস",
+  "This client has outstanding dues. Credit sales are blocked — collect the dues or take full payment.":
+    "এই ক্লায়েন্টের বাকি আছে। বাকিতে বিক্রি বন্ধ — বাকি আদায় করুন অথবা পুরো টাকা নিন।",
 };
 
 interface LanguageContextValue {

@@ -7,6 +7,8 @@ import {
   Camera,
   Check,
   ChevronDown,
+  CircleAlert,
+  History,
   Loader2,
   ScanBarcode,
   Trash2,
@@ -15,6 +17,7 @@ import { toast } from "sonner";
 
 import { BarcodeScannerDialog } from "@/components/shared/barcode-scanner-dialog";
 import { ProductPhotoThumb } from "@/components/shared/product-photo-thumb";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -42,6 +45,28 @@ interface ClientOption {
   name: string;
   phone: string;
   type: string;
+}
+
+// Snapshot returned by GET /api/clients/[id]/purchase-summary — drives the
+// inline purchase-history card and the block-DUE-clients enforcement.
+interface PurchaseSummary {
+  client: {
+    id: string;
+    name: string;
+    phone: string;
+    type: string;
+  };
+  outstandingDue: number;
+  unpaidInvoiceCount: number;
+  lastPurchases: {
+    id: string;
+    invoiceNumber: string;
+    total: number;
+    amountPaid: number;
+    paymentStatus: string;
+    date: string;
+  }[];
+  blockDueClients: boolean;
 }
 
 // Product returned by GET /api/finished-products/lookup.
@@ -224,6 +249,19 @@ export function NewSaleClient() {
     (clientParam && clients
       ? clients.find((client) => client.id === clientParam) ?? null
       : null);
+
+  // #27 Inline client snapshot: last 3 purchases + total dues, refreshed on
+  // the same cadence as the client list. Only fetched once a client is picked.
+  const {
+    data: clientSummary,
+    isLoading: clientSummaryLoading,
+  } = useSWR<PurchaseSummary>(
+    selectedClient
+      ? `/api/clients/${selectedClient.id}/purchase-summary`
+      : null,
+    fetcher<PurchaseSummary>,
+    { refreshInterval: 30000, keepPreviousData: true }
+  );
 
   // Money math is shared with POST /api/sales via lib/sales-totals.ts, so the
   // totals shown here are exactly what gets stored.
@@ -583,6 +621,98 @@ export function NewSaleClient() {
           </Command>
         </PopoverContent>
       </Popover>
+
+      {/* #27 Inline client snapshot — last purchases + dues, so the operator
+          can upsell and never unknowingly sells to a DUE client. */}
+      {selectedClient && (
+        <div className="max-w-xl rounded-xl border bg-white shadow-sm">
+          <div className="flex items-center gap-2 border-b border-border bg-cream/50 px-4 py-2.5">
+            <History className="size-4 text-gold" aria-hidden />
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-charcoal">
+              {t("Client history")}
+            </h2>
+          </div>
+
+          {clientSummaryLoading && !clientSummary ? (
+            <div className="space-y-2 p-4">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-5 w-1/2" />
+            </div>
+          ) : clientSummary ? (
+            <div className="p-4">
+              {/* Last 3 purchases (upsell view — any status). */}
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t("Last purchases")}
+              </p>
+              {clientSummary.lastPurchases.length === 0 ? (
+                <p className="mt-1.5 text-sm text-muted-foreground">
+                  {t("No purchases yet")}
+                </p>
+              ) : (
+                <ul className="mt-1.5 space-y-1.5">
+                  {clientSummary.lastPurchases.map((purchase) => (
+                    <li
+                      key={purchase.id}
+                      className="flex flex-wrap items-center gap-2 text-sm"
+                    >
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {purchase.invoiceNumber}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {new Date(purchase.date).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                        })}
+                      </span>
+                      <span className="font-medium text-charcoal">
+                        {formatMoney(purchase.total)}
+                      </span>
+                      <StatusBadge status={purchase.paymentStatus} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Total dues across all unpaid invoices. */}
+              <p
+                className={cn(
+                  "mt-3 flex items-center gap-1.5 border-t pt-3 text-sm font-medium",
+                  clientSummary.outstandingDue > 0
+                    ? "text-rust"
+                    : "text-muted-foreground"
+                )}
+              >
+                {t("Total dues")}:
+                <span className="font-mono">
+                  {formatMoney(clientSummary.outstandingDue)}
+                </span>
+                {clientSummary.unpaidInvoiceCount > 0 && (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    · {clientSummary.unpaidInvoiceCount}{" "}
+                    {t("unpaid invoices")}
+                  </span>
+                )}
+              </p>
+
+              {/* Owner policy: DUE clients must not be sold on credit. */}
+              {clientSummary.blockDueClients &&
+                clientSummary.outstandingDue > 0 && (
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-rust/40 bg-rust/10 px-3 py-2 text-xs text-charcoal">
+                    <CircleAlert
+                      className="mt-0.5 size-4 shrink-0 text-rust"
+                      aria-hidden
+                    />
+                    <p className="font-medium">
+                      {t(
+                        "This client has outstanding dues. Credit sales are blocked — collect the dues or take full payment."
+                      )}
+                    </p>
+                  </div>
+                )}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Barcode scan */}
       <div className="relative max-w-xl">
