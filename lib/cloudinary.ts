@@ -28,16 +28,29 @@ export function isValidFabricImageUrl(value: string): boolean {
   );
 }
 
+// Finished-garment photos live under the "finished" folder. They use the same
+// Cloudinary-hosted URL shape as fabric photos — only the folder differs — so
+// a client still can't point the record at an arbitrary host, data: URI or
+// server path.
+export type ProductImageFolder = "fabric" | "finished";
+
+export function isValidFinishedProductImageUrl(value: string): boolean {
+  return CLOUDINARY_URL_PATTERN.test(value);
+}
+
 /**
- * Uploads an image buffer to Cloudinary (folder: fabric) and resolves with
- * the API response — use result.secure_url as the permanent public URL.
+ * Uploads an image buffer to Cloudinary and resolves with the API response —
+ * use result.secure_url as the permanent public URL. Defaults to the "fabric"
+ * folder so existing callers are unaffected; pass "finished" for garment
+ * photos taken at finished-goods intake.
  */
 export function uploadBufferToCloudinary(
-  buffer: Buffer
+  buffer: Buffer,
+  folder: ProductImageFolder = "fabric"
 ): Promise<UploadApiResponse> {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder: "fabric", resource_type: "image" },
+      { folder, resource_type: "image" },
       (error, result) => {
         if (error || !result) {
           reject(error ?? new Error("Cloudinary upload returned no result."));

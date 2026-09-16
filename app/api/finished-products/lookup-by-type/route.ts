@@ -11,6 +11,7 @@ interface LookupRow extends RowDataPacket {
   barcode: string;
   quantity_remaining: string;
   storage_location: string;
+  image_url: string | null;
   status: string;
   date_added: Date;
   batch_number: string;
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
   try {
     const [rows] = await db.query<LookupRow[]>(
       `SELECT fp.id, fp.work_order_id, fp.barcode, fp.quantity_remaining,
-              fp.storage_location, fp.status, fp.date_added,
+              fp.storage_location, fp.image_url, fp.status, fp.date_added,
               fb.batch_number, wo.product_type
        FROM finished_products fp
        JOIN work_orders wo ON wo.id = fp.work_order_id
@@ -61,6 +62,7 @@ export async function GET(request: Request) {
         quantity: Number(row.quantity_remaining),
         quantityRemaining: Number(row.quantity_remaining),
         storageLocation: row.storage_location,
+        imageUrl: row.image_url,
         status: row.status,
         dateAdded: row.date_added,
         batchNumber: row.batch_number,

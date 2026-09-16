@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { isValidFinishedProductImageUrl } from "@/lib/cloudinary";
 
 // A finished product joined with its work order + fabric batch.
 interface FinishedProductRow extends RowDataPacket {
@@ -13,6 +14,7 @@ interface FinishedProductRow extends RowDataPacket {
   quantity: string;
   quantity_remaining: string;
   storage_location: string;
+  image_url: string | null;
   status: string;
   date_added: Date;
   batch_number: string;
@@ -92,8 +94,8 @@ export async function GET(request: Request) {
   try {
     const [rows] = await db.query<FinishedProductRow[]>(
       `SELECT fp.id, fp.work_order_id, fp.barcode, fp.quantity,
-              fp.quantity_remaining, fp.storage_location, fp.status,
-              fp.date_added, fb.batch_number, wo.product_type
+              fp.quantity_remaining, fp.storage_location, fp.image_url,
+              fp.status, fp.date_added, fb.batch_number, wo.product_type
        FROM finished_products fp
        JOIN work_orders wo ON wo.id = fp.work_order_id
        JOIN fabric_batches fb ON fb.id = wo.fabric_batch_id
@@ -110,6 +112,7 @@ export async function GET(request: Request) {
         quantity: Number(row.quantity),
         quantityRemaining: Number(row.quantity_remaining),
         storageLocation: row.storage_location,
+        imageUrl: row.image_url,
         status: row.status,
         dateAdded: row.date_added,
         batchNumber: row.batch_number,
@@ -127,7 +130,11 @@ export async function GET(request: Request) {
 /**
  * POST /api/finished-products — adds a completed work order to stock.
  *
- * Body: { workOrderId: string, storageLocation: string }
+ * Body: { workOrderId: string, storageLocation: string, imageUrl?: string | null }
+ * imageUrl is the optional garment photo previously uploaded via
+ * POST /api/uploads (folder "finished") — a Cloudinary-hosted https URL.
+ * Anything else is ignored (stored as NULL) so a client can't point the
+ * record at an arbitrary URL or file on the server.
  *
  * Steps (in one transaction, with barcode-race retry like the fabric-batch
  * generator):
@@ -167,6 +174,15 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+
+  // Optional garment photo — must be a URL previously returned by
+  // POST /api/uploads (folder "finished"). Invalid values are stored as NULL
+  // rather than failing the whole intake, matching the fabric-batch flow.
+  const imageUrl =
+    typeof body.imageUrl === "string" &&
+    isValidFinishedProductImageUrl(body.imageUrl)
+      ? body.imageUrl
+      : null;
 
   const connection = await db.getConnection();
 
@@ -241,9 +257,17 @@ export async function POST(request: Request) {
         await connection.query<ResultSetHeader>(
           `INSERT INTO finished_products
              (id, work_order_id, barcode, quantity, quantity_remaining,
-              storage_location, status)
-           VALUES (?, ?, ?, ?, ?, ?, 'IN_STOCK')`,
-          [id, workOrderId, barcode, order.quantity, order.quantity, storageLocation]
+              storage_location, image_url, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'IN_STOCK')`,
+          [
+            id,
+            workOrderId,
+            barcode,
+            order.quantity,
+            order.quantity,
+            storageLocation,
+            imageUrl,
+          ]
         );
 
         await connection.commit();
@@ -267,6 +291,7 @@ export async function POST(request: Request) {
         quantity,
         quantityRemaining: quantity,
         storageLocation,
+        imageUrl,
         status: "IN_STOCK",
         dateAdded: new Date(),
       },

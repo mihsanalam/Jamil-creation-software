@@ -143,3 +143,24 @@ PREPARE tier4_add_idx_fabric_batches_status FROM @tier4_add_idx_fabric_batches_s
 EXECUTE tier4_add_idx_fabric_batches_status;
 DEALLOCATE PREPARE tier4_add_idx_fabric_batches_status;
 
+-- ── 29. Finished-product photo: optional garment photo taken at
+-- finished-goods intake so the POS can show the garment and clients can be
+-- shown what they're buying (fabric photos already exist on fabric_batches).
+-- (MySQL's ALTER TABLE has no IF NOT EXISTS for columns, so we emulate it
+--  with a guarded dynamic statement — re-importing is a safe no-op.)
+SET @tier4_has_fp_image_url := (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'finished_products'
+    AND column_name = 'image_url'
+);
+SET @tier4_add_fp_image_url := IF(
+  @tier4_has_fp_image_url = 0,
+  'ALTER TABLE finished_products ADD COLUMN image_url VARCHAR(500) NULL',
+  'SELECT 1'
+);
+PREPARE tier4_add_fp_image_url FROM @tier4_add_fp_image_url;
+EXECUTE tier4_add_fp_image_url;
+DEALLOCATE PREPARE tier4_add_fp_image_url;
+

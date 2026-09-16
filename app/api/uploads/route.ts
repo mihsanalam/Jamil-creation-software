@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
-import { uploadBufferToCloudinary } from "@/lib/cloudinary";
+import {
+  uploadBufferToCloudinary,
+  type ProductImageFolder,
+} from "@/lib/cloudinary";
 
 // Accepted image types. The extension is derived from the MIME type, never
 // from the client-supplied filename, so nothing outside this list can be
@@ -13,15 +16,21 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
   "image/gif": ".gif",
 };
 
+// Cloudinary folders this endpoint may write to. Fabric intake uses "fabric"
+// (the default); finished-goods intake uses "finished" for garment photos.
+const ALLOWED_FOLDERS: ReadonlySet<string> = new Set(["fabric", "finished"]);
+
 // 5 MB — plenty for a fabric photo taken with a phone.
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 /**
  * POST /api/uploads — saves one image from a multipart form and returns its
- * public URL. Request: multipart/form-data with a single "file" field.
- * Response: { path: "https://res.cloudinary.com/<cloud>/image/upload/v.../fabric/<...>.<ext>" }
+ * public URL. Request: multipart/form-data with a single "file" field, plus
+ * an optional "folder" field or ?folder= query ("fabric" default, "finished"
+ * for garment photos taken at finished-goods intake).
+ * Response: { path: "https://res.cloudinary.com/<cloud>/image/upload/v.../<folder>/<...>.<ext>" }
  *
- * Files are uploaded to Cloudinary under the "fabric" folder with a unique
+ * Files are uploaded to Cloudinary under the requested folder with a unique
  * timestamp+UUID public ID (the original filename is never used), so two
  * uploads can never collide and nothing about the client's filesystem is
  * trusted. Hosted URLs survive re-deploys, unlike files on the app's disk.
@@ -51,6 +60,24 @@ export async function POST(request: Request) {
     );
   }
 
+  // Target Cloudinary folder: ?folder=finished or a "folder" form field for
+  // garment photos, defaulting to "fabric" so existing callers are unaffected.
+  // Anything outside the allow-list is rejected before it reaches Cloudinary.
+  const folderField = formData.get("folder");
+  const folderRaw =
+    typeof folderField === "string" && folderField.trim() !== ""
+      ? folderField.trim()
+      : new URL(request.url).searchParams.get("folder")?.trim() || "fabric";
+  if (!ALLOWED_FOLDERS.has(folderRaw)) {
+    return NextResponse.json(
+      {
+        message: `Invalid folder "${folderRaw}" — must be one of: fabric, finished.`,
+      },
+      { status: 400 }
+    );
+  }
+  const folder = folderRaw as ProductImageFolder;
+
   const extension = ALLOWED_MIME_TYPES[file.type];
   if (!extension) {
     return NextResponse.json(
@@ -77,7 +104,8 @@ export async function POST(request: Request) {
 
   try {
     const result = await uploadBufferToCloudinary(
-      Buffer.from(await file.arrayBuffer())
+      Buffer.from(await file.arrayBuffer()),
+      folder
     );
 
     // secure_url is the HTTPS URL permanently hosted by Cloudinary — the
