@@ -7,9 +7,18 @@ import { db } from "@/lib/db";
 // Keys used by the Owner settings dialog.
 const SETTING_KEY_THRESHOLD = "bottleneck_threshold";
 const SETTING_KEY_BLOCK_DUE = "block_due_clients";
+// Receipt customisation (#28) — printed on invoices and money receipts.
+const SETTING_KEY_SHOP_NAME = "shop_name";
+const SETTING_KEY_SHOP_PHONE = "shop_phone";
+const SETTING_KEY_RECEIPT_FOOTER = "receipt_footer";
 const DEFAULT_THRESHOLD = 8;
 const MIN_THRESHOLD = 1;
 const MAX_THRESHOLD = 100;
+const DEFAULT_SHOP_NAME = "Jamil Creations";
+const DEFAULT_SHOP_PHONE = "";
+const DEFAULT_RECEIPT_FOOTER = "Garments manufacturer & wholesaler";
+// Cap for the free-text shop profile fields (name / phone / footer note).
+const MAX_SHOP_TEXT_LENGTH = 120;
 
 // A settings row — everything is stored as text and parsed on read.
 interface SettingRow extends RowDataPacket {
@@ -24,6 +33,8 @@ interface SettingRow extends RowDataPacket {
  *   - bottleneckThreshold: pipeline bottleneck alert threshold (1–100)
  *   - blockDueClients: when true, the POS refuses new CREDIT sales to
  *     clients that already have outstanding dues (feature #27)
+ *   - shopName / shopPhone / receiptFooter: printed on invoices and
+ *     money receipts (feature #28)
  */
 export async function GET() {
   // Middleware skips /api routes, so the session is verified here directly.
@@ -35,8 +46,14 @@ export async function GET() {
   try {
     const [rows] = await db.query<SettingRow[]>(
       `SELECT setting_key, setting_value FROM app_settings
-       WHERE setting_key IN (?, ?)`,
-      [SETTING_KEY_THRESHOLD, SETTING_KEY_BLOCK_DUE]
+       WHERE setting_key IN (?, ?, ?, ?, ?)`,
+      [
+        SETTING_KEY_THRESHOLD,
+        SETTING_KEY_BLOCK_DUE,
+        SETTING_KEY_SHOP_NAME,
+        SETTING_KEY_SHOP_PHONE,
+        SETTING_KEY_RECEIPT_FOOTER,
+      ]
     );
     const values = new Map(
       rows.map((row) => [row.setting_key, row.setting_value])
@@ -51,6 +68,12 @@ export async function GET() {
           ? threshold
           : DEFAULT_THRESHOLD,
       blockDueClients: values.get(SETTING_KEY_BLOCK_DUE) === "1",
+      shopName:
+        values.get(SETTING_KEY_SHOP_NAME)?.trim() || DEFAULT_SHOP_NAME,
+      shopPhone: values.get(SETTING_KEY_SHOP_PHONE)?.trim() ?? DEFAULT_SHOP_PHONE,
+      receiptFooter:
+        values.get(SETTING_KEY_RECEIPT_FOOTER)?.trim() ||
+        DEFAULT_RECEIPT_FOOTER,
     });
   } catch (error) {
     console.error("Failed to read settings:", error);
@@ -63,9 +86,9 @@ export async function GET() {
 
 /**
  * PUT /api/settings — saves Owner settings (OWNER role only).
- * Body: { bottleneckThreshold?: number, blockDueClients?: boolean }
- * At least one setting must be present; the two save independently so the
- * dialog can send both and other callers can send just one.
+ * Body: { bottleneckThreshold?, blockDueClients?, shopName?, shopPhone?, receiptFooter? }
+ * At least one setting must be present; each present field is validated and
+ * saved independently so callers can send any subset.
  */
 export async function PUT(request: Request) {
   // Only the Owner may change business-wide settings.
@@ -114,6 +137,33 @@ export async function PUT(request: Request) {
     });
   }
 
+  // Free-text shop profile fields (#28). Empty strings are allowed (they fall
+  // back to the built-in defaults on read) but non-strings are rejected.
+  const shopTextFields: [string, string, string][] = [
+    ["shopName", SETTING_KEY_SHOP_NAME, "shopName"],
+    ["shopPhone", SETTING_KEY_SHOP_PHONE, "shopPhone"],
+    ["receiptFooter", SETTING_KEY_RECEIPT_FOOTER, "receiptFooter"],
+  ];
+  for (const [bodyKey, settingKey, label] of shopTextFields) {
+    if (body[bodyKey] === undefined) continue;
+    if (typeof body[bodyKey] !== "string") {
+      return NextResponse.json(
+        { message: `Invalid ${label} — must be text.` },
+        { status: 400 }
+      );
+    }
+    const trimmed = (body[bodyKey] as string).trim();
+    if (trimmed.length > MAX_SHOP_TEXT_LENGTH) {
+      return NextResponse.json(
+        {
+          message: `Invalid ${label} — must be at most ${MAX_SHOP_TEXT_LENGTH} characters.`,
+        },
+        { status: 400 }
+      );
+    }
+    saves.push({ key: settingKey, value: trimmed });
+  }
+
   if (saves.length === 0) {
     return NextResponse.json(
       {
@@ -139,6 +189,9 @@ export async function PUT(request: Request) {
 
     const savedThreshold = saves.find((s) => s.key === SETTING_KEY_THRESHOLD);
     const savedBlockDue = saves.find((s) => s.key === SETTING_KEY_BLOCK_DUE);
+    const savedShopName = saves.find((s) => s.key === SETTING_KEY_SHOP_NAME);
+    const savedShopPhone = saves.find((s) => s.key === SETTING_KEY_SHOP_PHONE);
+    const savedFooter = saves.find((s) => s.key === SETTING_KEY_RECEIPT_FOOTER);
     return NextResponse.json({
       ...(savedThreshold
         ? { bottleneckThreshold: Number(savedThreshold.value) }
@@ -146,6 +199,9 @@ export async function PUT(request: Request) {
       ...(savedBlockDue
         ? { blockDueClients: savedBlockDue.value === "1" }
         : {}),
+      ...(savedShopName ? { shopName: savedShopName.value } : {}),
+      ...(savedShopPhone ? { shopPhone: savedShopPhone.value } : {}),
+      ...(savedFooter ? { receiptFooter: savedFooter.value } : {}),
     });
   } catch (error) {
     console.error("Failed to save settings:", error);

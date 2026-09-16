@@ -138,11 +138,15 @@ export function DashboardClient() {
     { refreshInterval: 10000, keepPreviousData: true }
   );
 
-  // Settings dialog — edits the bottleneck alert threshold and the
-  // block-DUE-clients policy (see /api/settings).
+  // Settings dialog — edits the bottleneck alert threshold, the
+  // block-DUE-clients policy and the printed-receipt shop profile
+  // (see /api/settings).
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInput, setSettingsInput] = useState("");
   const [blockDueInput, setBlockDueInput] = useState(false);
+  const [shopNameInput, setShopNameInput] = useState("");
+  const [shopPhoneInput, setShopPhoneInput] = useState("");
+  const [receiptFooterInput, setReceiptFooterInput] = useState("");
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   // Low-stock / aging-stock warnings (Tier 2 #9) — poll a bit slower than
@@ -157,11 +161,14 @@ export function DashboardClient() {
   });
   const stockAlertsList = stockAlerts?.alerts ?? [];
 
-  // Pre-fill the form from GET /api/settings (which carries both values with
-  // their defaults).
+  // Pre-fill the form from GET /api/settings (which carries every value with
+  // its default).
   async function openSettings() {
     setSettingsInput(String(data?.bottleneckThreshold ?? 8));
     setBlockDueInput(false);
+    setShopNameInput("");
+    setShopPhoneInput("");
+    setReceiptFooterInput("");
     setSettingsOpen(true);
     try {
       const response = await fetch("/api/settings");
@@ -169,12 +176,24 @@ export function DashboardClient() {
       const settings = (await response.json()) as {
         bottleneckThreshold?: number;
         blockDueClients?: boolean;
+        shopName?: string;
+        shopPhone?: string;
+        receiptFooter?: string;
       };
       if (typeof settings.bottleneckThreshold === "number") {
         setSettingsInput(String(settings.bottleneckThreshold));
       }
       if (typeof settings.blockDueClients === "boolean") {
         setBlockDueInput(settings.blockDueClients);
+      }
+      if (typeof settings.shopName === "string") {
+        setShopNameInput(settings.shopName);
+      }
+      if (typeof settings.shopPhone === "string") {
+        setShopPhoneInput(settings.shopPhone);
+      }
+      if (typeof settings.receiptFooter === "string") {
+        setReceiptFooterInput(settings.receiptFooter);
       }
     } catch {
       // The pre-filled defaults stay; the save attempt will surface errors.
@@ -199,6 +218,9 @@ export function DashboardClient() {
         body: JSON.stringify({
           bottleneckThreshold: value,
           blockDueClients: blockDueInput,
+          shopName: shopNameInput,
+          shopPhone: shopPhoneInput,
+          receiptFooter: receiptFooterInput,
         }),
       });
       const payload = await response.json().catch(() => null);
@@ -653,7 +675,7 @@ export function DashboardClient() {
                 {t("Settings")}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
-                {t("Flag a phase as a bottleneck when more than this many batches wait in it (1–100).")}
+                {t("Pipeline alert threshold, printed-receipt details and the due-clients policy.")}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -680,6 +702,63 @@ export function DashboardClient() {
                   autoFocus
                   className="h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
                 />
+              </div>
+
+              {/* #28 Shop profile printed on invoices + money receipts. */}
+              <div className="space-y-3 rounded-lg border border-border bg-cream/40 p-3.5">
+                <p className="text-sm font-semibold text-charcoal">
+                  {t("Receipt details")}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <Label
+                      htmlFor="shop-name"
+                      className="text-xs font-semibold text-charcoal"
+                    >
+                      {t("Shop name")}
+                    </Label>
+                    <Input
+                      id="shop-name"
+                      value={shopNameInput}
+                      onChange={(event) => setShopNameInput(event.target.value)}
+                      placeholder="Jamil Creations"
+                      maxLength={120}
+                      className="h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label
+                      htmlFor="shop-phone"
+                      className="text-xs font-semibold text-charcoal"
+                    >
+                      {t("Shop phone")}
+                    </Label>
+                    <Input
+                      id="shop-phone"
+                      value={shopPhoneInput}
+                      onChange={(event) => setShopPhoneInput(event.target.value)}
+                      placeholder="01XXXXXXXXX"
+                      maxLength={120}
+                      className="h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label
+                    htmlFor="receipt-footer"
+                    className="text-xs font-semibold text-charcoal"
+                  >
+                    {t("Receipt footer note")}
+                  </Label>
+                  <Input
+                    id="receipt-footer"
+                    value={receiptFooterInput}
+                    onChange={(event) => setReceiptFooterInput(event.target.value)}
+                    placeholder={t("Shown at the bottom of every printed invoice and money receipt.")}
+                    maxLength={120}
+                    className="h-10 rounded-lg border-input bg-white px-3 text-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
+                  />
+                </div>
               </div>
 
               {/* #27 Policy: refuse new credit sales to DUE clients. */}

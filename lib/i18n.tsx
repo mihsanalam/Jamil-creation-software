@@ -737,6 +737,14 @@ const BN: Record<string, string> = {
   "unpaid invoices": "অপরিশোধিত ইনভয়েস",
   "This client has outstanding dues. Credit sales are blocked — collect the dues or take full payment.":
     "এই ক্লায়েন্টের বাকি আছে। বাকিতে বিক্রি বন্ধ — বাকি আদায় করুন অথবা পুরো টাকা নিন।",
+  "Pipeline alert threshold, printed-receipt details and the due-clients policy.":
+    "পাইপলাইন সতর্কতা সীমা, রসিদের তথ্য এবং বাকি-ক্লায়েন্ট নীতি।",
+  "Receipt details": "রসিদের তথ্য",
+  "Shop name": "দোকানের নাম",
+  "Shop phone": "দোকানের ফোন",
+  "Receipt footer note": "রসিদের ফুটার নোট",
+  "Shown at the bottom of every printed invoice and money receipt.":
+    "প্রতিটি প্রিন্ট করা ইনভয়েস ও মানি রসিদের নিচে দেখানো হয়।",
 };
 
 interface LanguageContextValue {
