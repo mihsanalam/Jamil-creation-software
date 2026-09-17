@@ -115,6 +115,9 @@ CREATE TABLE finished_products (
   -- status='SOLD' once this reaches 0, so partial sells are possible.
   quantity_remaining DECIMAL(10,2) NOT NULL DEFAULT 0,
   storage_location  VARCHAR(100) NOT NULL,   -- e.g. "Shelf A-3"
+  -- Which shop/branch holds this lot (#30 multi-shop readiness). Single-branch
+  -- installs never touch it — every row keeps the "Main Store" default.
+  branch            VARCHAR(100) NOT NULL DEFAULT 'Main Store',
   image_url         VARCHAR(500),            -- optional garment photo (Cloudinary URL under the "finished" folder)
   status            ENUM('IN_STOCK','SOLD') NOT NULL DEFAULT 'IN_STOCK',
   date_added        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

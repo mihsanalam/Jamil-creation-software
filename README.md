@@ -124,6 +124,10 @@ Tier 4 schema additions (the `audit_logs`, `login_attempts` tables, `users.sessi
 ```bash
 node scripts/migrate-tier4.cjs
 ```
+The multi-shop `finished_products.branch` column (#30) ships the same way:
+```bash
+node scripts/migrate-branch.cjs
+```
 Fresh installs pick everything up from `docs/jamil-creations-schema.sql` automatically.
 
 ## Learn More

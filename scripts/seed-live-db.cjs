@@ -82,9 +82,9 @@ async function main() {
     }
     await c.query(
       `INSERT INTO finished_products
-         (id, work_order_id, barcode, quantity, quantity_remaining, storage_location, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'IN_STOCK')`,
-      [fpId, woId, barcode, item.fp.qty, item.fp.qty, item.fp.shelf]
+         (id, work_order_id, barcode, quantity, quantity_remaining, storage_location, branch, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'IN_STOCK')`,
+      [fpId, woId, barcode, item.fp.qty, item.fp.qty, item.fp.shelf, "Main Store"]
     );
     console.log(`Warehouse + ${barcode} ${item.wo.product} (${item.fp.qty} pcs, ${item.fp.shelf})`);
   }

@@ -166,12 +166,12 @@ INSERT INTO work_order_phases (id, work_order_id, name, step_order, status, work
 -- product row yet, so it appears in the "ready to stock" intake screen.
 -- ============================================
 
-INSERT INTO finished_products (id, work_order_id, barcode, quantity, quantity_remaining, storage_location, status, date_added) VALUES
-('fp_001', 'wo_002', 'JC-0001', 20, 10, 'Shelf A-3', 'IN_STOCK', '2026-07-26 18:00:00'),
-('fp_002', 'wo_006', 'JC-0002', 15, 15, 'Shelf B-1', 'IN_STOCK', '2026-08-04 10:00:00'),
-('fp_003', 'wo_007', 'JC-0003', 20, 20, 'Shelf B-2', 'IN_STOCK', '2026-08-10 11:00:00'),
-('fp_004', 'wo_008', 'JC-0004', 20, 20, 'Shelf A-1', 'IN_STOCK', '2026-08-14 12:00:00'),
-('fp_005', 'wo_009', 'JC-0005', 10, 6,  'Shelf B-3', 'IN_STOCK', '2026-08-06 09:00:00');
+INSERT INTO finished_products (id, work_order_id, barcode, quantity, quantity_remaining, storage_location, branch, status, date_added) VALUES
+('fp_001', 'wo_002', 'JC-0001', 20, 10, 'Shelf A-3', 'Main Store', 'IN_STOCK', '2026-07-26 18:00:00'),
+('fp_002', 'wo_006', 'JC-0002', 15, 15, 'Shelf B-1', 'Main Store', 'IN_STOCK', '2026-08-04 10:00:00'),
+('fp_003', 'wo_007', 'JC-0003', 20, 20, 'Shelf B-2', 'Main Store', 'IN_STOCK', '2026-08-10 11:00:00'),
+('fp_004', 'wo_008', 'JC-0004', 20, 20, 'Shelf A-1', 'Main Store', 'IN_STOCK', '2026-08-14 12:00:00'),
+('fp_005', 'wo_009', 'JC-0005', 10, 6,  'Shelf B-3', 'Main Store', 'IN_STOCK', '2026-08-06 09:00:00');
 
 -- ============================================
 -- CLIENTS
