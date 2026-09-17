@@ -14,6 +14,7 @@ interface FinishedProductRow extends RowDataPacket {
   quantity: string;
   quantity_remaining: string;
   storage_location: string;
+  branch: string;
   image_url: string | null;
   status: string;
   date_added: Date;
@@ -54,6 +55,7 @@ function isDuplicateKeyError(error: unknown) {
  * - search: case-insensitive partial match against barcode, batch number,
  *   or product type
  * - status: IN_STOCK | SOLD, or "all" (default)
+ * - branch: exact branch name (e.g. "Main Store"), or "all" (default)
  */
 export async function GET(request: Request) {
   const session = await auth();
@@ -64,6 +66,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const statusParam = searchParams.get("status")?.trim();
   const search = searchParams.get("search")?.trim();
+  const branchParam = searchParams.get("branch")?.trim();
 
   // Unknown status values are a client error — don't silently drop the filter.
   if (
@@ -86,6 +89,10 @@ export async function GET(request: Request) {
     where.push("fp.status = ?");
     params.push(statusParam);
   }
+  if (branchParam && branchParam !== "all") {
+    where.push("fp.branch = ?");
+    params.push(branchParam);
+  }
   if (search) {
     where.push("(fp.barcode LIKE ? OR fb.batch_number LIKE ? OR wo.product_type LIKE ?)");
     params.push(`%${search}%`, `%${search}%`, `%${search}%`);
@@ -94,8 +101,9 @@ export async function GET(request: Request) {
   try {
     const [rows] = await db.query<FinishedProductRow[]>(
       `SELECT fp.id, fp.work_order_id, fp.barcode, fp.quantity,
-              fp.quantity_remaining, fp.storage_location, fp.image_url,
-              fp.status, fp.date_added, fb.batch_number, wo.product_type
+              fp.quantity_remaining, fp.storage_location, fp.branch,
+              fp.image_url, fp.status, fp.date_added, fb.batch_number,
+              wo.product_type
        FROM finished_products fp
        JOIN work_orders wo ON wo.id = fp.work_order_id
        JOIN fabric_batches fb ON fb.id = wo.fabric_batch_id
@@ -112,6 +120,7 @@ export async function GET(request: Request) {
         quantity: Number(row.quantity),
         quantityRemaining: Number(row.quantity_remaining),
         storageLocation: row.storage_location,
+        branch: row.branch,
         imageUrl: row.image_url,
         status: row.status,
         dateAdded: row.date_added,
@@ -130,7 +139,10 @@ export async function GET(request: Request) {
 /**
  * POST /api/finished-products — adds a completed work order to stock.
  *
- * Body: { workOrderId: string, storageLocation: string, imageUrl?: string | null }
+ * Body: { workOrderId: string, storageLocation: string, branch?: string,
+ *         imageUrl?: string | null }
+ * branch is optional — it defaults to "Main Store" for single-branch installs
+ * (#30 multi-shop readiness) and is capped at the column's 100-char limit.
  * imageUrl is the optional garment photo previously uploaded via
  * POST /api/uploads (folder "finished") — a Cloudinary-hosted https URL.
  * Anything else is ignored (stored as NULL) so a client can't point the
@@ -174,6 +186,13 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+
+  // Optional branch (#30) — defaults to the single Main Store branch so old
+  // clients (and single-branch installs) keep working untouched.
+  const branch =
+    typeof body.branch === "string" && body.branch.trim() !== ""
+      ? body.branch.trim().slice(0, 100)
+      : "Main Store";
 
   // Optional garment photo — must be a URL previously returned by
   // POST /api/uploads (folder "finished"). Invalid values are stored as NULL
@@ -257,8 +276,8 @@ export async function POST(request: Request) {
         await connection.query<ResultSetHeader>(
           `INSERT INTO finished_products
              (id, work_order_id, barcode, quantity, quantity_remaining,
-              storage_location, image_url, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'IN_STOCK')`,
+              storage_location, branch, image_url, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'IN_STOCK')`,
           [
             id,
             workOrderId,
@@ -266,6 +285,7 @@ export async function POST(request: Request) {
             order.quantity,
             order.quantity,
             storageLocation,
+            branch,
             imageUrl,
           ]
         );
@@ -291,6 +311,7 @@ export async function POST(request: Request) {
         quantity,
         quantityRemaining: quantity,
         storageLocation,
+        branch,
         imageUrl,
         status: "IN_STOCK",
         dateAdded: new Date(),

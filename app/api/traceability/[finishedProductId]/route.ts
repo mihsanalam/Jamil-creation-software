@@ -12,6 +12,7 @@ interface ProductRow extends RowDataPacket {
   quantity: string;
   quantity_remaining: string;
   storage_location: string;
+  branch: string;
   status: string;
   date_added: Date;
   product_type: string;
@@ -63,8 +64,8 @@ export async function GET(
   try {
     const [products] = await db.query<ProductRow[]>(
       `SELECT fp.id, fp.work_order_id, fp.barcode, fp.quantity,
-              fp.quantity_remaining, fp.storage_location, fp.status,
-              fp.date_added, wo.product_type,
+              fp.quantity_remaining, fp.storage_location, fp.branch,
+              fp.status, fp.date_added, wo.product_type,
               fb.batch_number, fb.fabric_type, fb.quantity AS batch_quantity,
               fb.unit, fb.supplier, fb.date_received, fp.image_url
        FROM finished_products fp
@@ -141,6 +142,7 @@ export async function GET(
       })),
       storage: {
         location: product.storage_location,
+        branch: product.branch,
         dateAdded: product.date_added,
       },
       sales: salesList,
