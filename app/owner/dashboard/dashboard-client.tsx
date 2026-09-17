@@ -95,6 +95,7 @@ interface StockAlertsData {
     productType: string;
     fabricType: string;
     storageLocation: string;
+    branch: string;
     quantity: number;
     quantityRemaining: number;
     daysInStock: number;
@@ -636,6 +637,7 @@ export function DashboardClient() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {lot.storageLocation}
+                        <span className="block text-xs">{lot.branch}</span>
                       </TableCell>
                       <TableCell className="text-center font-mono">
                         {lot.quantityRemaining}

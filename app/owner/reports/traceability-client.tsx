@@ -46,6 +46,7 @@ export interface FinishedProductRow {
   quantity: number;
   quantityRemaining: number;
   storageLocation: string;
+  branch: string;
   status: "IN_STOCK" | "SOLD";
   dateAdded: string;
   batchNumber: string;
@@ -81,6 +82,7 @@ export interface ProductTrace {
   }[];
   storage: {
     location: string;
+    branch: string;
     dateAdded: string;
   };
   sales: {
@@ -363,6 +365,9 @@ export function TraceabilityClient() {
                       </TableCell>
                       <TableCell className="py-3.5 text-charcoal">
                         {product.storageLocation}
+                        <span className="block text-xs text-muted-foreground">
+                          {product.branch}
+                        </span>
                       </TableCell>
                       <TableCell className="py-3.5 pr-6 text-right text-charcoal">
                         {formatDate(product.dateAdded)}
@@ -561,6 +566,7 @@ function StorageCard({ trace }: { trace: ProductTrace }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        <DetailRow label="Branch" value={trace.storage.branch} />
         <DetailRow
           label="Storage location"
           value={trace.storage.location}

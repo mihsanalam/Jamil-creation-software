@@ -18,6 +18,7 @@ interface ProductRow extends RowDataPacket {
   quantity: string;
   quantity_remaining: string;
   storage_location: string;
+  branch: string;
   status: "IN_STOCK" | "SOLD";
   date_added: Date;
 }
@@ -29,6 +30,7 @@ interface StockAlertProduct {
   productType: string;
   fabricType: string;
   storageLocation: string;
+  branch: string;
   quantity: number;
   quantityRemaining: number;
   daysInStock: number;
@@ -83,7 +85,7 @@ export async function GET() {
 
     const [rows] = await db.query<ProductRow[]>(
       `SELECT fp.id, fp.barcode, fp.work_order_id, fp.quantity, fp.quantity_remaining,
-              fp.storage_location, fp.status, fp.date_added,
+              fp.storage_location, fp.branch, fp.status, fp.date_added,
               wo.product_type, fb.fabric_type
        FROM finished_products fp
        JOIN work_orders wo ON wo.id = fp.work_order_id
@@ -101,6 +103,7 @@ export async function GET() {
         productType: row.product_type,
         fabricType: row.fabric_type,
         storageLocation: row.storage_location,
+        branch: row.branch,
         quantity: Number(row.quantity),
         quantityRemaining: remaining,
         daysInStock,
