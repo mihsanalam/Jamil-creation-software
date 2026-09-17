@@ -192,6 +192,11 @@ const BN: Record<string, string> = {
   products: "পণ্য",
   "Product / batch number": "পণ্য / ব্যাচ নম্বর",
   "Storage location": "স্টোরেজ অবস্থান",
+  "Branch": "শাখা",
+  "All branches": "সব শাখা",
+  "Filter by branch": "শাখা অনুযায়ী দেখুন",
+  "Shop or branch holding this stock.": "এই স্টক যে দোকান বা শাখায় রাখা হবে তা।",
+  "e.g. Main Store": "যেমন মেইন স্টোর",
   "Date added": "যোগ করার তারিখ",
   "Failed to load products": "পণ্য লোড করা যায়নি",
 
@@ -229,16 +234,16 @@ const BN: Record<string, string> = {
   Generate: "তৈরি করুন",
   "Creates the product and shows its scannable barcode.":
     "পণ্য তৈরি করে তার স্ক্যানযোগ্য বারকোড দেখায়।",
-  "Pick a batch above and fill in the storage location to enable this.":
-    "এটি চালু করতে উপরে একটি ব্যাচ নির্বাচন করে স্টোরেজ অবস্থান লিখুন।",
   "Print label": "লেবেল প্রিন্ট করুন",
   "Shelf or rack code where this product will be stored.":
     "যে শেলফ বা র‍্যাকে এই পণ্য রাখা হবে তার কোড।",
   "e.g. Shelf A-3": "যেমন শেলফ A-3",
   "Select a ready batch first.": "প্রথমে একটি প্রস্তুত ব্যাচ নির্বাচন করুন।",
   "Confirm and add to stock": "নিশ্চিত করে স্টকে যোগ করুন",
-  "Select a batch and enter a storage location first.":
-    "প্রথমে একটি ব্যাচ নির্বাচন করে স্টোরেজ অবস্থান লিখুন।",
+  "Select a batch and enter a branch and storage location first.":
+    "প্রথমে একটি ব্যাচ নির্বাচন করে শাখা ও স্টোরেজ অবস্থান লিখুন।",
+  "Pick a batch above and fill in the branch and storage location to enable this.":
+    "এটি চালু করতে উপরে একটি ব্যাচ নির্বাচন করে শাখা ও স্টোরেজ অবস্থান লিখুন।",
   "Could not add the product to stock.": "পণ্যটি স্টকে যোগ করা যায়নি।",
   "Added to stock · Barcode": "স্টকে যোগ হয়েছে · বারকোড",
   "stored at": "স্টোরেজে রাখা হয়েছে",

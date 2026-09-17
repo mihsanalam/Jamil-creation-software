@@ -27,6 +27,7 @@ export interface FinishedProduct {
   quantity: number;
   quantityRemaining: number;
   storageLocation: string;
+  branch: string;
   imageUrl: string | null;
   status: string;
   dateAdded: string;
@@ -57,6 +58,9 @@ export function WarehouseSearchClient() {
   const { t } = useLanguage();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  // Optional branch filter (#30) — applied client-side over the loaded rows;
+  // "all" shows every branch.
+  const [branchFilter, setBranchFilter] = useState("all");
   const [selectedProduct, setSelectedProduct] =
     useState<FinishedProduct | null>(null);
 
@@ -76,6 +80,17 @@ export function WarehouseSearchClient() {
     { refreshInterval: 15000, keepPreviousData: true }
   );
 
+  // Distinct branch names for the filter dropdown, from the loaded rows.
+  const branches = Array.from(
+    new Set((data ?? []).map((product) => product.branch))
+  ).sort((a, b) => a.localeCompare(b));
+
+  // Rows after the optional branch filter.
+  const visibleProducts =
+    data && branchFilter !== "all"
+      ? data.filter((product) => product.branch === branchFilter)
+      : data;
+
   // A photo add/change/remove from the dialog updates the row in place.
   function handleProductUpdated(updated: { id: string; imageUrl: string | null }) {
     if (selectedProduct && selectedProduct.id === updated.id) {
@@ -86,25 +101,44 @@ export function WarehouseSearchClient() {
 
   return (
     <div className="space-y-5">
-      {/* Large, prominent search input */}
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground"
-          aria-hidden
-        />
-        <Input
-          id="warehouse-search"
-          placeholder={t("Search by barcode, batch number, or product type…")}
-          value={searchInput}
-          onChange={(event) => setSearchInput(event.target.value)}
-          aria-label={t("Search finished products")}
-          className="h-14 rounded-xl border-input bg-white pl-12 text-base shadow-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
-        />
+      {/* Search + branch filter row */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search
+            className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            id="warehouse-search"
+            placeholder={t("Search by barcode, batch number, or product type…")}
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            aria-label={t("Search finished products")}
+            className="h-14 rounded-xl border-input bg-white pl-12 text-base shadow-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20"
+          />
+        </div>
+
+        {/* Branch filter (#30) — options come from the loaded stock */}
+        <select
+          value={branchFilter}
+          onChange={(event) => setBranchFilter(event.target.value)}
+          aria-label={t("Filter by branch")}
+          className="h-12 shrink-0 rounded-xl border border-input bg-white px-3 text-sm text-charcoal shadow-sm focus-visible:border-gold focus-visible:ring-4 focus-visible:ring-gold/20 sm:self-center"
+        >
+          <option value="all">{t("All branches")}</option>
+          {branches.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Row count */}
       <p className="text-sm text-muted-foreground">
-        {isLoading ? t("Loading…") : `${data?.length ?? 0} ${t("products")}`}
+        {isLoading
+          ? t("Loading…")
+          : `${visibleProducts?.length ?? 0} ${t("products")}`}
       </p>
 
       {/* Error state */}
@@ -152,6 +186,9 @@ export function WarehouseSearchClient() {
                   {t("Quantity")}
                 </TableHead>
                 <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
+                  {t("Branch")}
+                </TableHead>
+                <TableHead className="h-11 text-xs font-semibold uppercase tracking-wider text-charcoal">
                   {t("Storage location")}
                 </TableHead>
                 <TableHead className="h-11 pr-6 text-right text-xs font-semibold uppercase tracking-wider text-charcoal">
@@ -163,7 +200,7 @@ export function WarehouseSearchClient() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.map((product) => (
+              {visibleProducts?.map((product) => (
                 <TableRow
                   key={product.id}
                   onClick={() => setSelectedProduct(product)}
@@ -201,6 +238,9 @@ export function WarehouseSearchClient() {
                   </TableCell>
                   <TableCell className="py-3.5 font-mono text-charcoal">
                     {product.quantityRemaining} {t("pcs")}
+                  </TableCell>
+                  <TableCell className="py-3.5 text-charcoal">
+                    {product.branch}
                   </TableCell>
                   <TableCell className="py-3.5 text-charcoal">
                     {product.storageLocation}

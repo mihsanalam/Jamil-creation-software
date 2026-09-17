@@ -70,10 +70,15 @@ export interface CreatedProduct {
   barcode: string;
   quantity: number;
   storageLocation: string;
+  branch: string;
   imageUrl: string | null;
   status: string;
   dateAdded: string;
 }
+
+// Default branch for single-branch installs (#30 multi-shop readiness) —
+// mirrors the server-side fallback in POST /api/finished-products.
+const DEFAULT_BRANCH = "Main Store";
 
 async function fetcher<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -119,6 +124,7 @@ export function FinishedGoodsClient() {
   const [readyOpen, setReadyOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ReadyOrder | null>(null);
   const [storageLocation, setStorageLocation] = useState("");
+  const [branch, setBranch] = useState(DEFAULT_BRANCH);
   const [isCreating, setIsCreating] = useState(false);
   const [createdProduct, setCreatedProduct] = useState<CreatedProduct | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -178,13 +184,29 @@ export function FinishedGoodsClient() {
     }
   }
 
+  // Same invalidation rule as the storage location: the barcode is bound to
+  // the exact batch + branch + location, so changing the branch resets it.
+  function handleBranchChange(value: string) {
+    setBranch(value);
+    if (createdProduct) {
+      setCreatedProduct(null);
+      setQrDataUrl(null);
+    }
+  }
+
   // POST the work order to /api/finished-products (transaction generates the
   // barcode, copies quantity, inserts the row). The garment photo (if any) is
   // uploaded first via /api/uploads (folder "finished") so the product row
   // can reference the saved URL. Returns the created product or null on
   // failure; the QR data URL is stored for rendering the label.
   async function createProduct(): Promise<CreatedProduct | null> {
-    if (!selectedOrder || storageLocation.trim() === "") return null;
+    if (
+      !selectedOrder ||
+      storageLocation.trim() === "" ||
+      branch.trim() === ""
+    ) {
+      return null;
+    }
 
     setIsCreating(true);
     try {
@@ -215,6 +237,7 @@ export function FinishedGoodsClient() {
         body: JSON.stringify({
           workOrderId: selectedOrder.id,
           storageLocation: storageLocation.trim(),
+          branch: branch.trim(),
           imageUrl,
         }),
       });
@@ -253,12 +276,13 @@ export function FinishedGoodsClient() {
     if (!product) return;
 
     toast.success(`${t("Added to stock · Barcode")} ${product.barcode}`, {
-      description: `${selectedOrder.productType} · ${selectedOrder.batchNumber} — ${t("Storage location")}: ${product.storageLocation}`,
+      description: `${selectedOrder.productType} · ${selectedOrder.batchNumber} — ${t("Branch")}: ${product.branch} · ${t("Storage location")}: ${product.storageLocation}`,
     });
 
     // Reset the form; the consumed work order disappears from the picker.
     setSelectedOrder(null);
     setStorageLocation("");
+    setBranch(DEFAULT_BRANCH);
     setCreatedProduct(null);
     setQrDataUrl(null);
     clearPhoto();
@@ -271,7 +295,9 @@ export function FinishedGoodsClient() {
   }
 
   const confirmEnabled =
-    selectedOrder !== null && storageLocation.trim() !== "";
+    selectedOrder !== null &&
+    storageLocation.trim() !== "" &&
+    branch.trim() !== "";
 
   return (
 <div className="space-y-5">
@@ -424,7 +450,9 @@ export function FinishedGoodsClient() {
                 title={
                   confirmEnabled
                     ? undefined
-                    : t("Select a batch and enter a storage location first.")
+                    : t(
+                        "Select a batch and enter a branch and storage location first."
+                      )
                 }
                 className="h-11 rounded-lg bg-charcoal px-6 text-sm font-semibold text-cream shadow-sm transition-all hover:bg-charcoal/90 active:scale-[0.99] disabled:opacity-50"
               >
@@ -440,7 +468,9 @@ export function FinishedGoodsClient() {
               <p className="text-xs text-muted-foreground">
                 {confirmEnabled
                   ? t("Creates the product and shows its scannable barcode.")
-                  : t("Pick a batch above and fill in the storage location to enable this.")}
+                  : t(
+                      "Pick a batch above and fill in the branch and storage location to enable this."
+                    )}
               </p>
             </div>
           ) : (
@@ -474,7 +504,8 @@ export function FinishedGoodsClient() {
                   {createdProduct.barcode}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {createdProduct.quantity} {t("pcs")} · {createdProduct.storageLocation}
+                  {createdProduct.quantity} {t("pcs")} · {createdProduct.branch} ·{" "}
+                  {createdProduct.storageLocation}
                 </p>
               </div>
               <Button
@@ -490,8 +521,26 @@ export function FinishedGoodsClient() {
           )}
         </section>
 
-        {/* Right — storage location */}
+        {/* Right — branch + storage location */}
         <section className="flex flex-col rounded-xl bg-white p-6 shadow-sm ring-1 ring-border">
+          <div className="mb-4">
+            <Label htmlFor="branch" className="text-sm font-semibold text-charcoal">
+              {t("Branch")}
+            </Label>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t("Shop or branch holding this stock.")}
+            </p>
+            <Input
+              id="branch"
+              value={branch}
+              onChange={(event) => handleBranchChange(event.target.value)}
+              placeholder={t("e.g. Main Store")}
+              maxLength={100}
+              disabled={selectedOrder === null}
+              className={cn(FIELD, "mt-2")}
+            />
+          </div>
+
           <div className="mb-4">
             <Label htmlFor="storage-location" className="text-sm font-semibold text-charcoal">
               {t("Storage location")}
